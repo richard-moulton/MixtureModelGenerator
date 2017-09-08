@@ -23,7 +23,8 @@ package moa.streams.generators.mixturemodel;
 
 public class MixtureModel {
 
-	public MixtureModel() {
+	public MixtureModel(int numClasses, int numAttributes)
+	{
 		// TODO Auto-generated constructor stub
 	}
 

@@ -22,10 +22,13 @@
 package moa.streams.generators.mixturemodel;
 
 import com.github.javacliparser.IntOption;
+import com.yahoo.labs.samoa.instances.Attribute;
 import com.yahoo.labs.samoa.instances.Instance;
+import com.yahoo.labs.samoa.instances.Instances;
 import com.yahoo.labs.samoa.instances.InstancesHeader;
 
 import moa.core.Example;
+import moa.core.FastVector;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.streams.InstanceStream;
@@ -52,8 +55,9 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
             "instanceRandomSeed", 'i',
             "Seed for random generation of instances.", 1);
 
-    public IntOption numModelsOption = new IntOption("numModels", 'm',
-            "The number of models to include in the mixture model.", 2, 2, Integer.MAX_VALUE);
+    public IntOption numClassesOption = new IntOption("numClasses", 's',
+            "The number of classes in the data stream and the number of models to include in the mixture model.",
+            2, 2, Integer.MAX_VALUE);
 
     public IntOption numAttsOption = new IntOption("numAtts", 'a',
             "The number of attributes to generate.", 10, 0, Integer.MAX_VALUE);
@@ -63,6 +67,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
             1, 0, 4);
 	
     protected InstancesHeader streamHeader;
+    protected MixtureModel mixtureModel;
     
 	/* (non-Javadoc)
 	 * @see moa.streams.ExampleStream#getHeader()
@@ -114,27 +119,50 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	 * @see moa.streams.ExampleStream#restart()
 	 */
 	@Override
-	public void restart() {
+	public void restart()
+	{
 		// TODO Auto-generated method stub
-
 	}
 
 	/* (non-Javadoc)
 	 * @see moa.MOAObject#getDescription(java.lang.StringBuilder, int)
 	 */
 	@Override
-	public void getDescription(StringBuilder sb, int indent) {
-		// TODO Auto-generated method stub
-
+	public void getDescription(StringBuilder sb, int indent)
+	{
+		// Not implemented.
 	}
 
 	/* (non-Javadoc)
 	 * @see moa.options.AbstractOptionHandler#prepareForUseImpl(moa.tasks.TaskMonitor, moa.core.ObjectRepository)
 	 */
 	@Override
-	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
-		// TODO Auto-generated method stub
+	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
+	{
+		generateHeader();
+        generateMixtureModel();
+        restart();
+	}
 
+	private void generateMixtureModel()
+	{
+		this.mixtureModel = new MixtureModel(this.numClassesOption.getValue(), this.numAttsOption.getValue());
+	}
+
+	private void generateHeader()
+	{
+		FastVector<Attribute> attributes = new FastVector<Attribute>();
+        for (int i = 0; i < this.numAttsOption.getValue(); i++) {
+            attributes.addElement(new Attribute("att" + (i + 1)));
+        }
+        FastVector<String> classLabels = new FastVector<String>();
+        for (int i = 0; i < this.numClassesOption.getValue(); i++) {
+            classLabels.addElement("class" + (i + 1));
+        }
+        attributes.addElement(new Attribute("class", classLabels));
+        this.streamHeader = new InstancesHeader(new Instances(
+                getCLICreationString(InstanceStream.class), attributes, 0));
+        this.streamHeader.setClassIndex(this.streamHeader.numAttributes() - 1);
 	}
 
 }
