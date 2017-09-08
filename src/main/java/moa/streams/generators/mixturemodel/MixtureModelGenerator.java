@@ -19,8 +19,9 @@
  *    along with this program. If not, see <http://www.gnu.org/licenses/>.
  *    
  */
-package moa.streams.generators.mixedmodel;
+package moa.streams.generators.mixturemodel;
 
+import com.github.javacliparser.IntOption;
 import com.yahoo.labs.samoa.instances.Instance;
 import com.yahoo.labs.samoa.instances.InstancesHeader;
 
@@ -34,53 +35,69 @@ import moa.tasks.TaskMonitor;
  * @author Richard Hugh Moulton
  *
  */
-public class MixtureModelGenerator extends AbstractOptionHandler implements InstanceStream {
-
-	/**
-	 * 
-	 */
+public class MixtureModelGenerator extends AbstractOptionHandler implements InstanceStream
+{
+	 @Override
+	 public String getPurposeString()
+	 {
+		 return "Generates a data stream based on a mixture model.";
+	 }
+	 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * 
-	 */
-	public MixtureModelGenerator() {
-		// TODO Auto-generated constructor stub
-	}
+	public IntOption modelRandomSeedOption = new IntOption("modelRandomSeed",
+            'r', "Seed for random generation of model.", 1);
 
+    public IntOption instanceRandomSeedOption = new IntOption(
+            "instanceRandomSeed", 'i',
+            "Seed for random generation of instances.", 1);
+
+    public IntOption numModelsOption = new IntOption("numModels", 'm',
+            "The number of models to include in the mixture model.", 2, 2, Integer.MAX_VALUE);
+
+    public IntOption numAttsOption = new IntOption("numAtts", 'a',
+            "The number of attributes to generate.", 10, 0, Integer.MAX_VALUE);
+
+    public IntOption distributionOption = new IntOption("distribution", 'd',
+            "Distribution used for models. Uniform 0, Gaussian 1, etc.",
+            1, 0, 4);
+	
+    protected InstancesHeader streamHeader;
+    
 	/* (non-Javadoc)
 	 * @see moa.streams.ExampleStream#getHeader()
 	 */
 	@Override
-	public InstancesHeader getHeader() {
-		// TODO Auto-generated method stub
-		return null;
+	public InstancesHeader getHeader()
+	{
+		return this.streamHeader;
 	}
 
 	/* (non-Javadoc)
 	 * @see moa.streams.ExampleStream#estimatedRemainingInstances()
 	 */
 	@Override
-	public long estimatedRemainingInstances() {
-		// TODO Auto-generated method stub
-		return 0;
+	public long estimatedRemainingInstances()
+	{
+		return -1;
 	}
 
 	/* (non-Javadoc)
 	 * @see moa.streams.ExampleStream#hasMoreInstances()
 	 */
 	@Override
-	public boolean hasMoreInstances() {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean hasMoreInstances()
+	{
+		return true;
 	}
 
 	/* (non-Javadoc)
 	 * @see moa.streams.ExampleStream#nextInstance()
 	 */
 	@Override
-	public Example<Instance> nextInstance() {
-		// TODO Auto-generated method stub
+	public Example<Instance> nextInstance()
+	{
+		//magic here
 		return null;
 	}
 
@@ -88,9 +105,9 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	 * @see moa.streams.ExampleStream#isRestartable()
 	 */
 	@Override
-	public boolean isRestartable() {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean isRestartable()
+	{
+		return true;
 	}
 
 	/* (non-Javadoc)
