@@ -102,8 +102,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public Example<Instance> nextInstance()
 	{
-		//magic here
-		return null;
+		return this.mixtureModel.nextInstance();
 	}
 
 	/* (non-Javadoc)
@@ -112,7 +111,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public boolean isRestartable()
 	{
-		return true;
+		return false;
 	}
 
 	/* (non-Javadoc)
@@ -121,7 +120,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public void restart()
 	{
-		// TODO Auto-generated method stub
+		// Nothing required to be restarted.
 	}
 
 	/* (non-Javadoc)
@@ -140,13 +139,10 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
 	{
 		generateHeader();
-        generateMixtureModel();
-        restart();
-	}
-
-	private void generateMixtureModel()
-	{
-		this.mixtureModel = new MixtureModel(this.numClassesOption.getValue(), this.numAttsOption.getValue());
+		
+		// Initialize mixture model
+		this.mixtureModel = new MixtureModel(this.numClassesOption.getValue(), this.numAttsOption.getValue(),
+				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
 	}
 
 	private void generateHeader()

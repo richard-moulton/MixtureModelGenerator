@@ -21,11 +21,77 @@
  */
 package moa.streams.generators.mixturemodel;
 
-public class MixtureModel {
+import com.yahoo.labs.samoa.instances.DenseInstance;
 
-	public MixtureModel(int numClasses, int numAttributes)
+import moa.core.InstanceExample;
+
+import java.util.Random;
+
+import org.apache.commons.math3.distribution.*;
+
+public class MixtureModel
+{
+	private int models, dimensions;
+	private double[] weights;
+	private MultivariateNormalDistribution[] modelArray;
+	private Random modelRandom;
+	private Random instanceRandom;
+	
+	public MixtureModel(int numClasses, int numAttributes, int instanceRandomSeed, int modelRandomSeed)
 	{
-		// TODO Auto-generated constructor stub
+		// Initialize Mixture Model Variables and set seeds for random number generators
+		this.models = numClasses;
+		this.dimensions = numAttributes;
+		weights = new double[models];
+		modelArray = new MultivariateNormalDistribution[models];
+		modelRandom.setSeed(modelRandomSeed);
+		instanceRandom.setSeed(instanceRandomSeed);
+		
+		double weightSum = 0.0;
+		double[] means = new double[dimensions];
+		double[][] covariances = new double[dimensions][dimensions];
+		
+		// initialize arrays
+		for(int i = 0 ; i < models ; i++)
+		{
+			weights[i] = modelRandom.nextDouble();
+			weightSum += weights[i];
+			
+			// Generate "centroid" and covariance matrix for the Multivariate Normal Distribution
+			for(int j = 0 ; j < dimensions ; j++)
+			{
+				means[j] = modelRandom.nextDouble();
+				for(int k = 0 ; k < dimensions ; k++)
+				{
+					covariances[j][k] = modelRandom.nextDouble();
+				}
+			}
+			
+			modelArray[i] = new MultivariateNormalDistribution(means, covariances);
+		}
+		
+		// Normalize weights array
+		for(int i = 0 ; i < models ; i++)
+		{
+			weights[i] = weights[i]/weightSum;
+		}
+	}
+
+	public InstanceExample nextInstance()
+	{
+		int index = instanceRandom.nextInt(models-1);
+		double[] point = modelArray[index].sample();
+		double[] instance = new double[dimensions+1];
+		
+		// Add the class label to the sampled point as the last attribute
+		for(int i = 0 ; i < dimensions ; i++)
+		{
+			instance[i] = point[i];
+		}
+		
+		instance[dimensions] = (double)index;
+		
+		return new InstanceExample(new DenseInstance(1.0, instance));
 	}
 
 }
