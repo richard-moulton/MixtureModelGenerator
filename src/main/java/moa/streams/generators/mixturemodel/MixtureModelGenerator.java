@@ -75,6 +75,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public InstancesHeader getHeader()
 	{
+		System.out.println(this.streamHeader.toString());
 		return this.streamHeader;
 	}
 
@@ -102,7 +103,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public Example<Instance> nextInstance()
 	{
-		return this.mixtureModel.nextInstance();
+		return this.mixtureModel.nextInstance(this.getHeader());
 	}
 
 	/* (non-Javadoc)
@@ -159,6 +160,7 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
         this.streamHeader = new InstancesHeader(new Instances(
                 getCLICreationString(InstanceStream.class), attributes, 0));
         this.streamHeader.setClassIndex(this.streamHeader.numAttributes() - 1);
+        System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
 	}
 
 }

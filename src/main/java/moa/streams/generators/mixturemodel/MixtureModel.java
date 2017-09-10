@@ -22,6 +22,8 @@
 package moa.streams.generators.mixturemodel;
 
 import com.yahoo.labs.samoa.instances.DenseInstance;
+import com.yahoo.labs.samoa.instances.Instance;
+import com.yahoo.labs.samoa.instances.InstancesHeader;
 
 import moa.core.InstanceExample;
 
@@ -39,17 +41,23 @@ public class MixtureModel
 	
 	public MixtureModel(int numClasses, int numAttributes, int instanceRandomSeed, int modelRandomSeed)
 	{
-		// Initialize Mixture Model Variables and set seeds for random number generators
+		// Initialize Mixture Model Variables
 		this.models = numClasses;
 		this.dimensions = numAttributes;
 		weights = new double[models];
 		modelArray = new MultivariateNormalDistribution[models];
+		
+		// Initialize random number generators
+		modelRandom = new Random();
 		modelRandom.setSeed(modelRandomSeed);
+		instanceRandom = new Random();
 		instanceRandom.setSeed(instanceRandomSeed);
 		
 		double weightSum = 0.0;
 		double[] means = new double[dimensions];
+		double[][] x = new double[dimensions][dimensions];
 		double[][] covariances = new double[dimensions][dimensions];
+		double matrixSum = 0.0;
 		
 		// initialize arrays
 		for(int i = 0 ; i < models ; i++)
@@ -58,40 +66,65 @@ public class MixtureModel
 			weightSum += weights[i];
 			
 			// Generate "centroid" and covariance matrix for the Multivariate Normal Distribution
+			System.out.println("\nMeans:");
 			for(int j = 0 ; j < dimensions ; j++)
 			{
 				means[j] = modelRandom.nextDouble();
+				System.out.print(means[j]+" ");
 				for(int k = 0 ; k < dimensions ; k++)
 				{
-					covariances[j][k] = modelRandom.nextDouble();
+					x[j][k] = modelRandom.nextDouble();
 				}
+			}
+			
+			System.out.println("\nCovariance matrix:");
+			for(int j = 0 ; j < dimensions ; j++)
+			{
+				for(int k = 0 ; k < dimensions ; k++)
+				{
+					for(int l = 0 ; l < dimensions ; l++)
+					{
+						matrixSum += x[j][l]*x[k][l];
+					}
+					
+					covariances[j][k] = matrixSum;
+					matrixSum = 0.0;
+					System.out.print(covariances[j][k]+" ");
+				}
+				System.out.println();
 			}
 			
 			modelArray[i] = new MultivariateNormalDistribution(means, covariances);
 		}
 		
 		// Normalize weights array
+		System.out.println("\nWeights array:");
 		for(int i = 0 ; i < models ; i++)
 		{
 			weights[i] = weights[i]/weightSum;
+			System.out.print(weights[i]+" ");
 		}
 	}
 
-	public InstanceExample nextInstance()
+	public InstanceExample nextInstance(InstancesHeader instHead)
 	{
-		int index = instanceRandom.nextInt(models-1);
+		int index = instanceRandom.nextInt(models);
+		System.out.println("MMnI: index "+index+" is chosen.");
 		double[] point = modelArray[index].sample();
-		double[] instance = new double[dimensions+1];
+		double[] attVals = new double[dimensions];
 		
 		// Add the class label to the sampled point as the last attribute
+		System.out.println("Instance:");
 		for(int i = 0 ; i < dimensions ; i++)
 		{
-			instance[i] = point[i];
+			attVals[i] = point[i];
+			System.out.print(attVals[i]+" ");
 		}
 		
-		instance[dimensions] = (double)index;
-		
-		return new InstanceExample(new DenseInstance(1.0, instance));
+		Instance inst = new DenseInstance(1.0, attVals);
+        inst.setDataset(instHead);
+        inst.setClassValue(index + 1);
+        return new InstanceExample(inst);
 	}
 
 }
