@@ -111,7 +111,7 @@ public class MixtureModel
 		int index = instanceRandom.nextInt(models);
 		System.out.println("MMnI: index "+index+" is chosen.");
 		double[] point = modelArray[index].sample();
-		double[] attVals = new double[dimensions];
+		double[] attVals = new double[dimensions+1];
 		
 		// Add the class label to the sampled point as the last attribute
 		System.out.println("Instance:");
@@ -123,7 +123,7 @@ public class MixtureModel
 		
 		Instance inst = new DenseInstance(1.0, attVals);
         inst.setDataset(instHead);
-        inst.setClassValue(index + 1);
+        inst.setClassValue(index);
         return new InstanceExample(inst);
 	}
 
