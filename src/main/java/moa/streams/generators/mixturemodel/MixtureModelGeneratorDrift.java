@@ -22,6 +22,9 @@
 package moa.streams.generators.mixturemodel;
 
 import com.github.javacliparser.IntOption;
+
+import java.util.Random;
+
 import com.github.javacliparser.FlagOption;
 import com.github.javacliparser.FloatOption;
 import com.github.javacliparser.MultiChoiceOption;
@@ -65,22 +68,15 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
     		"The number of instances between the stable pre-drift mixture model and the stable post-drift mixture model.",
     		0, 0, Integer.MAX_VALUE);
     
-    public FloatOption driftMagnitudeConditional = new FloatOption("driftMagnitudeConditional",
-    	    'D',
-    	    "Magnitude of the drift between the starting probability and the one after the drift."
+    public FloatOption driftMagnitude = new FloatOption("driftMagnitude",
+    	    'D', "Magnitude of the drift between the starting probability and the one after the drift."
     		    + " Magnitude is expressed as the Hellinger distance [0,1]", 0.5, 1e-20, 0.9);
     
     public FloatOption precisionDriftMagnitude = new FloatOption("epsilon", 'e',
     	    "Precision of the drift magnitude for p(x) (how far from the set magnitude is acceptable)",
     	    0.01, 1e-20, 1.0);
     
-    public FlagOption driftConditional = new FlagOption("driftConditional", 'c',
-    	    "States if the drift should apply to the conditional distribution p(y|x).");
-    
-    public FlagOption driftPriors = new FlagOption("driftPriors", 'p',
-    	    "States if the drift should apply to the prior distribution p(x). ");
-    
-    public MultiChoiceOption driftFunction = new MultiChoiceOption("driftFunction", 'f', 
+   public MultiChoiceOption driftFunction = new MultiChoiceOption("driftFunction", 'f', 
     		"Function to determine transition between concepts.", new String[]{
                     "Linear", "Logistic"}, new String[]{"lin","log"}, 0);
     
@@ -98,6 +94,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
     protected InstancesHeader streamHeader;
     protected MixtureModel mixtureModelPre, mixtureModelPost;
     protected int numInstances;
+    protected Random monteCarloRandom;
     
     /**
 	 * @see moa.options.AbstractOptionHandler#prepareForUseImpl(moa.tasks.TaskMonitor, moa.core.ObjectRepository)
@@ -107,6 +104,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
 	{
 		numInstances = 0;
+		monteCarloRandom = new Random();
 		
 		generateHeader(this.numClassesPreOption.getValue());
 		
@@ -118,7 +116,8 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
 		
-		while(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost) > this.precisionDriftMagnitude.getValue())
+		while(Math.abs(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue()) -
+				this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
 		{
 			this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
 					this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
@@ -187,14 +186,66 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	 * @param mm2 the second mixture model
 	 * @return the Hellinger distance between mm1 and mm2
 	 */
-	private double hellingerDistance(MixtureModel mm1, MixtureModel mm2)
+	private double hellingerDistance(MixtureModel mm1, MixtureModel mm2, double targetDist)
 	{
-		double hDist = 1.0;
-		double monteCarlo = 0.0;
+		double volume = Math.pow(20.0,(double)this.numAttsOption.getValue());
+		double error = Double.MAX_VALUE;
+		double N = 0.0;
+		double sampleVar = 0.0;
+		double mean = 0.0;
+		double M2 = 0.0;
+		double delta1 = 0.0;
+		double delta2 = 0.0;
+		double x = 0.0;
+		double[] point = new double[this.numAttsOption.getValue()];
+		this.monteCarloRandom.setSeed(this.instanceRandomSeedOption.getValue()+this.modelRandomSeedOption.getValue());
+		
 		
 		// monte carlo integration
+		while(error > 0.01)
+		{
+			System.out.println("\nPoint:");
+			for(int i = 0 ; i < this.numAttsOption.getValue() ; i++)
+			{
+				point[i] = (this.monteCarloRandom.nextDouble()*20.0) - 10.0;
+				System.out.print(point[i]+" ");
+			}
+			
+			x = Math.sqrt(mm1.densityAt(point)*mm2.densityAt(point));
+			
+			N++;
+			
+			delta1 = x - mean;
+			mean += delta1/N;
+			delta2 = x - mean;
+			M2 += delta1*delta2;
+			
+			if (N >= 100)
+			{
+				sampleVar = M2/(N-1);
+				error = volume*Math.sqrt(sampleVar)/Math.sqrt((double)N);
+				
+				System.out.println("\nTD: "+targetDist+", 1.0 - mean = "+(1.0-mean)+" and error is "+error);
+				if(Math.abs(targetDist - 1.0 + mean) > error)
+				{
+					break;
+				}
+			System.out.println("N = "+ N + ", x was "+x+",\n (est) mean = "+mean+", sample variance is "+sampleVar+
+					",\n M2 is "+M2+", and error is "+error);
+			
+			System.out.println("Press any key to continue...");
+			try
+			{
+				System.in.read();
+			}
+			catch(Exception e)
+			{
+			}
+			finally{};
+			}
+		}
 		
-		return hDist - monteCarlo;
+		return 1.0 - mean;
 	}
 	
 	/**

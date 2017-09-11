@@ -172,4 +172,22 @@ public class MixtureModel
 		this.modelRandom.setSeed(modelRandomSeed);
 	}
 
+	/**
+	 * Calculates the density of the mixture model at the argument point.
+	 * 
+	 * @param point the point at which to calculate the mixture model's density.
+	 * @return the mixture model's density at the argument point.
+	 */
+	public double densityAt(double[] point)
+	{
+		double density = 0.0;
+		
+		for(int i = 0 ; i < dimensions ; i++)
+		{
+			density += weights[i]*modelArray[i].density(point);
+		}
+		
+		return density;
+	}
+
 }
