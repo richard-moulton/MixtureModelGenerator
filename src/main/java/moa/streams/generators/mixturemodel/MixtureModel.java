@@ -69,11 +69,26 @@ public class MixtureModel
 			System.out.println("\nMeans:");
 			for(int j = 0 ; j < dimensions ; j++)
 			{
-				means[j] = modelRandom.nextDouble();
+				means[j] = (modelRandom.nextDouble()*10.0)-(5.0);
 				System.out.print(means[j]+" ");
 				for(int k = 0 ; k < dimensions ; k++)
 				{
 					x[j][k] = modelRandom.nextDouble();
+				}
+			}
+			
+			for(int j = 0 ; j < dimensions ; j++)
+			{
+				for(int k = 0 ; k <= j ; k++)
+				{
+					for(int l = 0 ; l < dimensions ; l++)
+					{
+						matrixSum += x[j][l]*x[k][l];
+					}
+					
+					covariances[j][k] = matrixSum/5.0;
+					covariances[k][j] = matrixSum/5.0;
+					matrixSum = 0.0;
 				}
 			}
 			
@@ -82,13 +97,6 @@ public class MixtureModel
 			{
 				for(int k = 0 ; k < dimensions ; k++)
 				{
-					for(int l = 0 ; l < dimensions ; l++)
-					{
-						matrixSum += x[j][l]*x[k][l];
-					}
-					
-					covariances[j][k] = matrixSum;
-					matrixSum = 0.0;
 					System.out.print(covariances[j][k]+" ");
 				}
 				System.out.println();
@@ -109,16 +117,16 @@ public class MixtureModel
 	public InstanceExample nextInstance(InstancesHeader instHead)
 	{
 		int index = instanceRandom.nextInt(models);
-		System.out.println("MMnI: index "+index+" is chosen.");
+		//System.out.println("MMnI: index "+index+" is chosen.");
 		double[] point = modelArray[index].sample();
 		double[] attVals = new double[dimensions+1];
 		
 		// Add the class label to the sampled point as the last attribute
-		System.out.println("Instance:");
+		//System.out.println("Instance:");
 		for(int i = 0 ; i < dimensions ; i++)
 		{
 			attVals[i] = point[i];
-			System.out.print(attVals[i]+" ");
+			//System.out.print(attVals[i]+" ");
 		}
 		
 		Instance inst = new DenseInstance(1.0, attVals);
