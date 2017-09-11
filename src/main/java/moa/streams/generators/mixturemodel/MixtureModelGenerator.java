@@ -40,12 +40,6 @@ import moa.tasks.TaskMonitor;
  */
 public class MixtureModelGenerator extends AbstractOptionHandler implements InstanceStream
 {
-	 @Override
-	 public String getPurposeString()
-	 {
-		 return "Generates a data stream based on a mixture model.";
-	 }
-	 
 	private static final long serialVersionUID = 1L;
 
 	public IntOption modelRandomSeedOption = new IntOption("modelRandomSeed",
@@ -69,72 +63,9 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
     protected InstancesHeader streamHeader;
     protected MixtureModel mixtureModel;
     
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#getHeader()
-	 */
-	@Override
-	public InstancesHeader getHeader()
-	{
-		//System.out.println(this.streamHeader.toString());
-		return this.streamHeader;
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#estimatedRemainingInstances()
-	 */
-	@Override
-	public long estimatedRemainingInstances()
-	{
-		return -1;
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#hasMoreInstances()
-	 */
-	@Override
-	public boolean hasMoreInstances()
-	{
-		return true;
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#nextInstance()
-	 */
-	@Override
-	public Example<Instance> nextInstance()
-	{
-		return this.mixtureModel.nextInstance(this.getHeader());
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#isRestartable()
-	 */
-	@Override
-	public boolean isRestartable()
-	{
-		return false;
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.streams.ExampleStream#restart()
-	 */
-	@Override
-	public void restart()
-	{
-		// Nothing required to be restarted.
-	}
-
-	/* (non-Javadoc)
-	 * @see moa.MOAObject#getDescription(java.lang.StringBuilder, int)
-	 */
-	@Override
-	public void getDescription(StringBuilder sb, int indent)
-	{
-		// Not implemented.
-	}
-
-	/* (non-Javadoc)
+    /**
 	 * @see moa.options.AbstractOptionHandler#prepareForUseImpl(moa.tasks.TaskMonitor, moa.core.ObjectRepository)
+	 * @see moa.streams.generators.mixturemodel.MixtureModel
 	 */
 	@Override
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
@@ -146,6 +77,21 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
 	}
 
+	/**
+	 * @return the next instance in the data stream by calling the MixtureModel object's nextInstance method.
+	 * 
+	 * @see moa.streams.ExampleStream#nextInstance()
+	 * @see moa.streams.generators.mixturemodel.MixtureModel#nextInstance(InstancesHeader)
+	 */
+	@Override
+	public Example<Instance> nextInstance()
+	{
+		return this.mixtureModel.nextInstance(this.getHeader());
+	}
+	
+	/**
+	 * Generates the stream's header.
+	 */
 	private void generateHeader()
 	{
 		FastVector<Attribute> attributes = new FastVector<Attribute>();
@@ -165,6 +111,75 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
         System.out.println("streamHeader's number of classes is "+this.streamHeader.numClasses());
         System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
         System.out.println("streamHeader's size is "+this.streamHeader.size());
+	}
+    
+	/**
+	 * @return the stream's header.
+	 * @see moa.streams.ExampleStream#getHeader()
+	 */
+	@Override
+	public InstancesHeader getHeader()
+	{
+		//System.out.println(this.streamHeader.toString());
+		return this.streamHeader;
+	}
+
+	/**
+	 * The MixtureModelGenerator can generate an infinite number of instances.
+	 * 
+	 * @see moa.streams.ExampleStream#estimatedRemainingInstances()
+	 */
+	@Override
+	public long estimatedRemainingInstances()
+	{
+		return -1;
+	}
+
+	/**
+	 * The MixtureModelGenerator can generate an infinite number of instances, therefore this method always returns TRUE.
+	 * 
+	 * @see moa.streams.ExampleStream#hasMoreInstances()
+	 */
+	@Override
+	public boolean hasMoreInstances()
+	{
+		return true;
+	}
+
+	/**
+	 * @see moa.streams.ExampleStream#isRestartable()
+	 */
+	@Override
+	public boolean isRestartable()
+	{
+		return true;
+	}
+
+	/**
+	 * Restarts the MixtureModel by repassing the pseudo random number generators' original seed values.
+	 * 
+	 * @see moa.streams.ExampleStream#restart()
+	 * @see moa.streams.generators.mixturemodel.MixtureModel#restart(int, int)
+	 */
+	@Override
+	public void restart()
+	{
+		this.mixtureModel.restart(this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
+	}
+
+	 @Override
+	 public String getPurposeString()
+	 {
+		 return "Generates a data stream based on a mixture model.";
+	 }
+	
+	/**
+	 * @see moa.MOAObject#getDescription(java.lang.StringBuilder, int)
+	 */
+	@Override
+	public void getDescription(StringBuilder sb, int indent)
+	{
+		// Not implemented.
 	}
 
 }

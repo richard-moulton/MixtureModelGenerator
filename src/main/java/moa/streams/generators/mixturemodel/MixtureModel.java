@@ -26,11 +26,20 @@ import com.yahoo.labs.samoa.instances.Instance;
 import com.yahoo.labs.samoa.instances.InstancesHeader;
 
 import moa.core.InstanceExample;
+import moa.core.MiscUtils;
 
 import java.util.Random;
 
 import org.apache.commons.math3.distribution.*;
 
+/**
+ * Makes use of the Apache Commons Math 3 package to represent a mixture model made up of individual multivariate distributions.
+ * Currently limited to using multivariate normal distributions.
+ * 
+ * @see org.apache.commons.math3.distribution
+ * 
+ * @author Richard Hugh Moulton
+ */
 public class MixtureModel
 {
 	private int models, dimensions;
@@ -39,6 +48,14 @@ public class MixtureModel
 	private Random modelRandom;
 	private Random instanceRandom;
 	
+	/**
+	 * Constructor method for a new MixtureModel.
+	 * 
+	 * @param numClasses the number of classes/number of models to include in the mixture model.
+	 * @param numAttributes the dimensionality if the distributions.
+	 * @param instanceRandomSeed the seed for the instances' pseudo random number generator.
+	 * @param modelRandomSeed the see for the models' pseudo random number generator.
+	 */
 	public MixtureModel(int numClasses, int numAttributes, int instanceRandomSeed, int modelRandomSeed)
 	{
 		// Initialize Mixture Model Variables
@@ -114,9 +131,18 @@ public class MixtureModel
 		}
 	}
 
+	/**
+	 * Generates the next instance in the data stream by selecting a model (via the weights array) and then sampling that model.
+	 * 
+	 * @see moa.streams.generators.mixturemodel.MixtureModel#weights
+	 * 
+	 * @param instHead the header for instances in the data stream
+	 * @return the next instance in the data stream
+	 */
 	public InstanceExample nextInstance(InstancesHeader instHead)
 	{
-		int index = instanceRandom.nextInt(models);
+		int index = MiscUtils.chooseRandomIndexBasedOnWeights(this.weights,
+                this.instanceRandom);
 		//System.out.println("MMnI: index "+index+" is chosen.");
 		double[] point = modelArray[index].sample();
 		double[] attVals = new double[dimensions+1];
@@ -133,6 +159,17 @@ public class MixtureModel
         inst.setDataset(instHead);
         inst.setClassValue(index);
         return new InstanceExample(inst);
+	}
+	
+	/**
+	 * Restarts the mixture model by reinitializing the pseudo random number generators' seeds.
+	 * @param instanceRandomSeed the seed for the instances' pseudo random number generator.
+	 * @param modelRandomSeed the see for the models' pseudo random number generator.
+	 */
+	public void restart(int instanceRandomSeed, int modelRandomSeed)
+	{
+		this.instanceRandom.setSeed(instanceRandomSeed);
+		this.modelRandom.setSeed(modelRandomSeed);
 	}
 
 }
