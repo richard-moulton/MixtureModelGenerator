@@ -181,13 +181,17 @@ public class MixtureModel
 	public double densityAt(double[] point)
 	{
 		double density = 0.0;
+		double w;
+		double dAt;
 		
 		for(int i = 0 ; i < dimensions ; i++)
 		{
-			density += weights[i]*modelArray[i].density(point);
+			w = weights[i];
+			dAt = modelArray[i].density(point);
+			density += w*dAt;
+			System.out.println("density + ("+w+" * "+dAt+") = "+density);
 		}
 		
 		return density;
 	}
-
 }

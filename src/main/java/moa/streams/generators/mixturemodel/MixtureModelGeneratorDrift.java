@@ -105,6 +105,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	{
 		numInstances = 0;
 		monteCarloRandom = new Random();
+		int z = 2;
 		
 		generateHeader(this.numClassesPreOption.getValue());
 		
@@ -114,13 +115,14 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		
 		// Initialize post-concept drift mixture model
 		this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
-				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
+				this.instanceRandomSeedOption.getValue()+1, this.modelRandomSeedOption.getValue()+1);
 		
 		while(Math.abs(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue()) -
 				this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
 		{
 			this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
-					this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
+					this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z);
+			z++;
 		}
 	}
 
@@ -188,6 +190,8 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	 */
 	private double hellingerDistance(MixtureModel mm1, MixtureModel mm2, double targetDist)
 	{
+		double monteCarlo = 0.0;
+		double runningSum = 0.0;
 		double volume = Math.pow(20.0,(double)this.numAttsOption.getValue());
 		double error = Double.MAX_VALUE;
 		double N = 0.0;
@@ -211,27 +215,37 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 				System.out.print(point[i]+" ");
 			}
 			
-			x = Math.sqrt(mm1.densityAt(point)*mm2.densityAt(point));
+			double mm1d = mm1.densityAt(point);
+			double mm2d = mm2.densityAt(point);
+			x = Math.sqrt(mm1d*mm2d);
+			runningSum += x;
+			
+			System.out.println("Density for mm1 is: "+mm1d+", density for m2 is: "+mm2d);
 			
 			N++;
 			
+			System.out.println("N = "+ N + ", x was "+x+", (est) mean = "+mean);
+			System.out.println("Running Sum = "+ runningSum + ", RS/N is "+runningSum/N);
+			
 			delta1 = x - mean;
 			mean += delta1/N;
+			System.out.println("delta1 = "+delta1+", (est) mean now "+mean);
 			delta2 = x - mean;
 			M2 += delta1*delta2;
+			monteCarlo = volume*runningSum/N;
+			System.out.println("M2 = "+M2+", monteCarlo = "+volume+" * "+runningSum+" / "+N+" = "+monteCarlo);
 			
 			if (N >= 100)
 			{
 				sampleVar = M2/(N-1);
 				error = volume*Math.sqrt(sampleVar)/Math.sqrt((double)N);
 				
-				System.out.println("\nTD: "+targetDist+", 1.0 - mean = "+(1.0-mean)+" and error is "+error);
-				if(Math.abs(targetDist - 1.0 + mean) > error)
+				System.out.println("\nTD: "+targetDist+", 1.0 - monteCarlo = "+(1.0 - monteCarlo)+" and error is "+error);
+				if(Math.abs(targetDist - 1.0 + monteCarlo) > error)
 				{
 					break;
 				}
-			System.out.println("N = "+ N + ", x was "+x+",\n (est) mean = "+mean+", sample variance is "+sampleVar+
-					",\n M2 is "+M2+", and error is "+error);
+			System.out.println("Sample variance is "+sampleVar+", and error is "+error);
 			
 			System.out.println("Press any key to continue...");
 			try
