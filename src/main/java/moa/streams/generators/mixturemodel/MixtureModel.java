@@ -129,6 +129,7 @@ public class MixtureModel
 			weights[i] = weights[i]/weightSum;
 			System.out.print(weights[i]+" ");
 		}
+		System.out.println();
 	}
 
 	/**
@@ -189,7 +190,7 @@ public class MixtureModel
 			w = weights[i];
 			dAt = modelArray[i].density(point);
 			density += w*dAt;
-			System.out.println("density + ("+w+" * "+dAt+") = "+density);
+			//System.out.println("density + ("+w+" * "+dAt+") = "+density);
 		}
 		
 		return density;

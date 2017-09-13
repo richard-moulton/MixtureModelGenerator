@@ -25,6 +25,8 @@ import com.github.javacliparser.IntOption;
 
 import java.util.Random;
 
+import org.apache.commons.math3.distribution.MultivariateNormalDistribution;
+
 import com.github.javacliparser.FlagOption;
 import com.github.javacliparser.FloatOption;
 import com.github.javacliparser.MultiChoiceOption;
@@ -108,18 +110,32 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		int z = 2;
 		
 		generateHeader(this.numClassesPreOption.getValue());
-		
+
 		// Initialize pre-concept drift mixture model
 		this.mixtureModelPre = new MixtureModel(this.numClassesPreOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
-		
+
 		// Initialize post-concept drift mixture model
 		this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue()+1, this.modelRandomSeedOption.getValue()+1);
-		
+
 		while(Math.abs(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue()) -
 				this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
 		{
+			System.out.println("Press any key to continue...");
+			try
+			{
+				System.in.read();
+			}
+			catch(Exception e)
+			{
+				
+			}
+			finally
+			{
+				
+			}
+			
 			this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
 					this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z);
 			z++;
@@ -190,8 +206,12 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	 */
 	private double hellingerDistance(MixtureModel mm1, MixtureModel mm2, double targetDist)
 	{
+		System.out.println("Monte Carlo Integration:");
+		
 		double monteCarlo = 0.0;
 		double runningSum = 0.0;
+		
+		// The integration takes place in the area [(-10,-10), (10,10)]
 		double volume = Math.pow(20.0,(double)this.numAttsOption.getValue());
 		double error = Double.MAX_VALUE;
 		double N = 0.0;
@@ -203,63 +223,54 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		double x = 0.0;
 		double[] point = new double[this.numAttsOption.getValue()];
 		this.monteCarloRandom.setSeed(this.instanceRandomSeedOption.getValue()+this.modelRandomSeedOption.getValue());
-		
-		
-		// monte carlo integration
+
+
+		// Monte Carlo integration
 		while(error > 0.01)
 		{
-			System.out.println("\nPoint:");
+			// Randomly generate the point at which to evaluate the function
 			for(int i = 0 ; i < this.numAttsOption.getValue() ; i++)
 			{
 				point[i] = (this.monteCarloRandom.nextDouble()*20.0) - 10.0;
-				System.out.print(point[i]+" ");
+				//System.out.print(point[i]+" ");
 			}
-			
-			double mm1d = mm1.densityAt(point);
-			double mm2d = mm2.densityAt(point);
-			x = Math.sqrt(mm1d*mm2d);
+
+			// Evaluate the function at point and add the result to the running sum
+			x = Math.sqrt(mm1.densityAt(point)*mm2.densityAt(point));
 			runningSum += x;
-			
-			System.out.println("Density for mm1 is: "+mm1d+", density for m2 is: "+mm2d);
-			
 			N++;
-			
-			System.out.println("N = "+ N + ", x was "+x+", (est) mean = "+mean);
-			System.out.println("Running Sum = "+ runningSum + ", RS/N is "+runningSum/N);
-			
+
+			// Adjust other values of interest
 			delta1 = x - mean;
 			mean += delta1/N;
-			System.out.println("delta1 = "+delta1+", (est) mean now "+mean);
 			delta2 = x - mean;
 			M2 += delta1*delta2;
 			monteCarlo = volume*runningSum/N;
-			System.out.println("M2 = "+M2+", monteCarlo = "+volume+" * "+runningSum+" / "+N+" = "+monteCarlo);
-			
-			if (N >= 100)
+
+			// Once a sufficient base of samples has been built, calculate the sample variance and estimate the error
+			if (N > 100000)
 			{
 				sampleVar = M2/(N-1);
-				error = volume*Math.sqrt(sampleVar)/Math.sqrt((double)N);
+				error = volume*Math.sqrt(sampleVar)/Math.sqrt(N);
 				
-				System.out.println("\nTD: "+targetDist+", 1.0 - monteCarlo = "+(1.0 - monteCarlo)+" and error is "+error);
-				if(Math.abs(targetDist - 1.0 + monteCarlo) > error)
+				// If the target distance is no longer within the error margin around the estimated distance
+				// then break from the WHILE loop
+				if(Math.abs(targetDist - 1.0 + monteCarlo) < error)
 				{
-					break;
+					System.out.println("Break / Out of limits / N: "+N+", monteCarlo: "+monteCarlo+
+							", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
 				}
-			System.out.println("Sample variance is "+sampleVar+", and error is "+error);
-			
-			System.out.println("Press any key to continue...");
-			try
-			{
-				System.in.read();
-			}
-			catch(Exception e)
-			{
-			}
-			finally{};
+				
+				if (N % 1000000 == 0)
+				{
+					System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+				}
 			}
 		}
-		
-		return 1.0 - mean;
+
+		System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+		System.out.println("Hellinger distance is estimated as "+(1.0-monteCarlo)+" (target distance was "+targetDist+")");
+		return 1.0 - monteCarlo;
 	}
 	
 	/**
