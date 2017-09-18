@@ -83,11 +83,9 @@ public class MixtureModel
 			weightSum += weights[i];
 			
 			// Generate "centroid" and covariance matrix for the Multivariate Normal Distribution
-			System.out.println("\nMeans:");
 			for(int j = 0 ; j < dimensions ; j++)
 			{
 				means[j] = (modelRandom.nextDouble()*10.0)-(5.0);
-				System.out.print(means[j]+" ");
 				for(int k = 0 ; k < dimensions ; k++)
 				{
 					x[j][k] = modelRandom.nextDouble();
@@ -109,27 +107,14 @@ public class MixtureModel
 				}
 			}
 			
-			System.out.println("\nCovariance matrix:");
-			for(int j = 0 ; j < dimensions ; j++)
-			{
-				for(int k = 0 ; k < dimensions ; k++)
-				{
-					System.out.print(covariances[j][k]+" ");
-				}
-				System.out.println();
-			}
-			
 			modelArray[i] = new MultivariateNormalDistribution(means, covariances);
 		}
 		
 		// Normalize weights array
-		System.out.println("\nWeights array:");
 		for(int i = 0 ; i < numModels ; i++)
 		{
 			weights[i] = weights[i]/weightSum;
-			System.out.print(weights[i]+" ");
 		}
-		System.out.println();
 	}
 
 	
@@ -149,12 +134,13 @@ public class MixtureModel
 		
 		double[][] newMeans = new double[this.numModels][this.dimensions];
 		double[][] newCovariance;
+		double[] newWeights = new double[this.numModels];
+		double weightSum = 0.0;
 		
 		// Collate base values for weights and means.
 		if(this.numModels != mm.getNumModels())
 		{
 			// Generate new weight array
-			double weightSum = 0.0;
 			for(int i = 0 ; i < this.numModels ; i++)
 			{
 				if (i < mm.getNumModels())
@@ -189,16 +175,24 @@ public class MixtureModel
 			}
 		}
 		
+		weightSum = 0.0;
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			newWeights[i] = modelRandom.nextDouble();
+			weightSum += newWeights[i];
+		}
+		
 		// Update new values for weights and means
 		for(int i = 0 ; i < this.numModels ; i++)
 		{
+			
 			// Generate new weights
-			this.weights[i] = (this.weights[i]*(1.0 - targetDist))+(modelRandom.nextDouble()*targetDist);
-
+			this.weights[i] = (this.weights[i]*(1.0 - targetDist))+(newWeights[i]*targetDist/weightSum);
+			
 			// Generate new means
 			for(int j = 0 ; j < this.dimensions ; j++)
 			{
-				newMeans[i][j] = (newMeans[i][j]*(1.0-targetDist))+(((modelRandom.nextDouble()*10.0)-5.0)*targetDist);
+				newMeans[i][j] = newMeans[i][j]+(((modelRandom.nextDouble()*2.0)-1.0)*(1.0-targetDist));
 			}
 
 			//Generate new covariance matrix
@@ -322,4 +316,42 @@ public class MixtureModel
 	{
 		return this.modelArray[i].getCovariances().getData();
 	}
+	
+	public String toString()
+	{
+		StringBuilder sb = new StringBuilder();
+		
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			double[] means = this.getMeans(i);
+			double[][] covariance = this.getCovariance(i);
+			sb.append("Mean:\n");
+			for(int j = 0 ; j < this.dimensions ; j++)
+			{
+				sb.append(means[j]+" ");
+			}
+			sb.append("\n");
+			
+			sb.append("\nCovariance:\n");
+			for(int j = 0 ; j < this.dimensions ; j++)
+			{
+				for(int k = 0 ; k < this.dimensions ; k++)
+				{
+					sb.append(covariance[j][k]+" ");
+				}
+				sb.append("\n");
+			}
+			sb.append("\n");
+		}
+		
+		sb.append("Weights:\n");
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			sb.append(this.weights[i]+" ");
+		}
+		sb.append("\n");
+		
+		return sb.toString();
+	}
+	
 }

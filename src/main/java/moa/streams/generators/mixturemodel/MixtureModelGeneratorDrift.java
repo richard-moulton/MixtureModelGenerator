@@ -105,6 +105,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	@Override
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
 	{
+		System.out.println("Initialized...");
 		numInstances = 0;
 		monteCarloRandom = new Random();
 		int z = 2;
@@ -119,28 +120,17 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		this.mixtureModelPost = new MixtureModel(this.mixtureModelPre, this.numClassesPostOption.getValue(), this.driftMagnitude.getValue(),
 				this.instanceRandomSeedOption.getValue()+1, this.modelRandomSeedOption.getValue()+1);
 
+		double hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
 		
-		while(Math.abs(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue()) -
-				this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
+		while(Math.abs(hDist - this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
 		{
-			System.out.println("Press any key to continue...");
-			try
-			{
-				System.in.read();
-			}
-			catch(Exception e)
-			{
-				
-			}
-			finally
-			{
-				
-			}
-			
 			this.mixtureModelPost = new MixtureModel(this.mixtureModelPre, this.numClassesPostOption.getValue(), this.driftMagnitude.getValue(),
 					this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z);
+			hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
+			System.out.println("The Hellinger distance was evaluated as "+hDist+", compared against the desired range "+this.driftMagnitude.getValue()+
+					" +/- "+this.precisionDriftMagnitude.getValue());;
 			z++;
-		}
+		}		
 	}
 
 	/**
@@ -181,10 +171,10 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
                 getCLICreationString(InstanceStream.class), attributes, 0));
         this.streamHeader.setClassIndex(this.streamHeader.numAttributes() - 1);
         
-        System.out.println("streamHeader's number of attributes is "+this.streamHeader.numAttributes());
-        System.out.println("streamHeader's number of classes is "+this.streamHeader.numClasses());
-        System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
-        System.out.println("streamHeader's size is "+this.streamHeader.size());
+        //System.out.println("streamHeader's number of attributes is "+this.streamHeader.numAttributes());
+        //System.out.println("streamHeader's number of classes is "+this.streamHeader.numClasses());
+        //System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
+        //System.out.println("streamHeader's size is "+this.streamHeader.size());
 	}
     
 	/**
@@ -207,7 +197,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	 */
 	private double hellingerDistance(MixtureModel mm1, MixtureModel mm2, double targetDist)
 	{
-		System.out.println("Monte Carlo Integration:");
+		//System.out.println("Monte Carlo Integration:");
 		
 		double monteCarlo = 0.0;
 		double runningSum = 0.0;
@@ -258,20 +248,20 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 				// then break from the WHILE loop
 				if(Math.abs(targetDist - 1.0 + monteCarlo) > (2*error))
 				{
-					System.out.println("Break / Out of limits / N: "+N+", monteCarlo: "+monteCarlo+
-							", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+					//System.out.println("Break / Out of limits / N: "+N+", monteCarlo: "+monteCarlo+
+							//", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
 					break;
 				}
 				
-				if (N % 1000000 == 0)
-				{
-					System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
-				}
+				//if (N % 1000000 == 0)
+				//{
+					//System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+				//}
 			}
 		}
 
-		System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
-		System.out.println("Hellinger distance is estimated as ("+(1.0-monteCarlo)+" +/- "+error+"); (target distance was "+targetDist+")");
+		//System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+		//System.out.println("Hellinger distance is estimated as ("+(1.0-monteCarlo)+" +/- "+error+"); (target distance was "+targetDist+")");
 		return 1.0 - monteCarlo;
 	}
 	
