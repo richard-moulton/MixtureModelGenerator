@@ -114,11 +114,12 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		// Initialize pre-concept drift mixture model
 		this.mixtureModelPre = new MixtureModel(this.numClassesPreOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
-
+		
 		// Initialize post-concept drift mixture model
-		this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
+		this.mixtureModelPost = new MixtureModel(this.mixtureModelPre, this.numClassesPostOption.getValue(), this.driftMagnitude.getValue(),
 				this.instanceRandomSeedOption.getValue()+1, this.modelRandomSeedOption.getValue()+1);
 
+		
 		while(Math.abs(hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue()) -
 				this.driftMagnitude.getValue()) > this.precisionDriftMagnitude.getValue())
 		{
@@ -136,7 +137,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 				
 			}
 			
-			this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
+			this.mixtureModelPost = new MixtureModel(this.mixtureModelPre, this.numClassesPostOption.getValue(), this.driftMagnitude.getValue(),
 					this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z);
 			z++;
 		}
@@ -248,17 +249,18 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 			monteCarlo = volume*runningSum/N;
 
 			// Once a sufficient base of samples has been built, calculate the sample variance and estimate the error
-			if (N > 100000)
+			if (N > 1000000)
 			{
 				sampleVar = M2/(N-1);
 				error = volume*Math.sqrt(sampleVar)/Math.sqrt(N);
 				
 				// If the target distance is no longer within the error margin around the estimated distance
 				// then break from the WHILE loop
-				if(Math.abs(targetDist - 1.0 + monteCarlo) < error)
+				if(Math.abs(targetDist - 1.0 + monteCarlo) > (2*error))
 				{
 					System.out.println("Break / Out of limits / N: "+N+", monteCarlo: "+monteCarlo+
 							", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
+					break;
 				}
 				
 				if (N % 1000000 == 0)
@@ -269,7 +271,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		}
 
 		System.out.println("N: "+N+", monteCarlo: "+monteCarlo+", 1.0 - monteCarlo: "+(1.0-monteCarlo)+", and error: "+error);
-		System.out.println("Hellinger distance is estimated as "+(1.0-monteCarlo)+" (target distance was "+targetDist+")");
+		System.out.println("Hellinger distance is estimated as ("+(1.0-monteCarlo)+" +/- "+error+"); (target distance was "+targetDist+")");
 		return 1.0 - monteCarlo;
 	}
 	
