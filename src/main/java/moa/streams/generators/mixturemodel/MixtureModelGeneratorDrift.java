@@ -26,7 +26,6 @@ import com.github.javacliparser.IntOption;
 import java.util.Random;
 
 import com.github.javacliparser.FloatOption;
-import com.github.javacliparser.MultiChoiceOption;
 import com.yahoo.labs.samoa.instances.Attribute;
 import com.yahoo.labs.samoa.instances.Instance;
 import com.yahoo.labs.samoa.instances.Instances;
@@ -76,10 +75,6 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
     	    "Precision of the drift magnitude for p(x) (how far from the set magnitude is acceptable)",
     	    0.01, 1e-20, 1.0);
     
-   public MultiChoiceOption driftFunction = new MultiChoiceOption("driftFunction", 'f', 
-    		"Function to determine transition between concepts.", new String[]{
-                    "Linear", "Logistic"}, new String[]{"lin","log"}, 0);
-    
     public IntOption numClassesPostOption = new IntOption("numClassesPost", 'P',
             "The number of classes in the data stream and the number of models to include in the mixture model post-concept drift.",
             2, 2, Integer.MAX_VALUE);
@@ -93,7 +88,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	
     protected InstancesHeader streamHeader;
     protected MixtureModel mixtureModelPre, mixtureModelPost;
-    protected int numInstances;
+    protected int numInstances, lastInstancePre, firstInstancePost;
     protected Random monteCarloRandom;
     
     /**
@@ -105,6 +100,8 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	{
 		System.out.println("Initialized...");
 		numInstances = 0;
+		lastInstancePre = this.burnInInstances.getValue();
+		firstInstancePost = lastInstancePre+this.driftDuration.getValue()+1;
 		monteCarloRandom = new Random();
 		int z = 2;
 		
@@ -140,13 +137,32 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	@Override
 	public Example<Instance> nextInstance()
 	{
-		if(this.numInstances > (this.burnInInstances.getValue() + this.driftDuration.getValue()))
-			return this.mixtureModelPost.nextInstance(this.getHeader());
-		else if(this.numInstances == (this.burnInInstances.getValue() + this.driftDuration.getValue()))
+		this.numInstances++;
+		
+		// Post concept drift model
+		if(this.numInstances >= firstInstancePost)
 		{
-			generateHeader(this.numClassesPostOption.getValue());
+			if (this.numInstances == firstInstancePost)
+				generateHeader(this.numClassesPostOption.getValue());
+			
 			return this.mixtureModelPost.nextInstance(this.getHeader());
 		}
+		// During concept drift mix of models
+		else if(this.numInstances > lastInstancePre && this.numInstances < firstInstancePost)
+		{
+			
+			if(this.numInstances == (lastInstancePre+1) &&
+					this.numClassesPostOption.getValue() > this.numClassesPreOption.getValue())
+			{
+				generateHeader(this.numClassesPostOption.getValue());
+			}
+					
+			if (this.monteCarloRandom.nextDouble() > (double)this.numInstances/(double)this.driftDuration.getValue())
+				return this.mixtureModelPost.nextInstance(this.getHeader());
+			else
+				return this.mixtureModelPre.nextInstance(this.getHeader());
+		}
+		// Pre concept drift model
 		else
 			return this.mixtureModelPre.nextInstance(this.getHeader());
 	}
@@ -168,11 +184,6 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
         this.streamHeader = new InstancesHeader(new Instances(
                 getCLICreationString(InstanceStream.class), attributes, 0));
         this.streamHeader.setClassIndex(this.streamHeader.numAttributes() - 1);
-        
-        //System.out.println("streamHeader's number of attributes is "+this.streamHeader.numAttributes());
-        //System.out.println("streamHeader's number of classes is "+this.streamHeader.numClasses());
-        //System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
-        //System.out.println("streamHeader's size is "+this.streamHeader.size());
 	}
     
 	/**
@@ -182,7 +193,6 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	@Override
 	public InstancesHeader getHeader()
 	{
-		//System.out.println(this.streamHeader.toString());
 		return this.streamHeader;
 	}
 
