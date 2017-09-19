@@ -25,9 +25,6 @@ import com.github.javacliparser.IntOption;
 
 import java.util.Random;
 
-import org.apache.commons.math3.distribution.MultivariateNormalDistribution;
-
-import com.github.javacliparser.FlagOption;
 import com.github.javacliparser.FloatOption;
 import com.github.javacliparser.MultiChoiceOption;
 import com.yahoo.labs.samoa.instances.Attribute;
@@ -51,6 +48,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 {
 
 	private static final long serialVersionUID = 1L;
+	private static final double INTEGRATE_RANGE = 1.0;
 
 	public IntOption numAttsOption = new IntOption("numAtts", 'a',
             "The number of attributes to generate.", 10, 0, Integer.MAX_VALUE);
@@ -203,7 +201,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		double runningSum = 0.0;
 		
 		// The integration takes place in the area [(-10,-10), (10,10)]
-		double volume = Math.pow(20.0,(double)this.numAttsOption.getValue());
+		double volume = Math.pow(INTEGRATE_RANGE,(double)this.numAttsOption.getValue());
 		double error = Double.MAX_VALUE;
 		double N = 0.0;
 		double sampleVar = 0.0;
@@ -222,7 +220,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 			// Randomly generate the point at which to evaluate the function
 			for(int i = 0 ; i < this.numAttsOption.getValue() ; i++)
 			{
-				point[i] = (this.monteCarloRandom.nextDouble()*20.0) - 10.0;
+				point[i] = (this.monteCarloRandom.nextDouble()*INTEGRATE_RANGE) - (INTEGRATE_RANGE/2.0);
 				//System.out.print(point[i]+" ");
 			}
 

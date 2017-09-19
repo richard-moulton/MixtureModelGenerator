@@ -42,6 +42,9 @@ import org.apache.commons.math3.distribution.*;
  */
 public class MixtureModel
 {
+	public static final double RANGE = 1.0;
+	public static final double COVSCALE = 10.0;
+	
 	private int numModels, dimensions;
 	private double[] weights;
 	private MultivariateNormalDistribution[] modelArray;
@@ -83,14 +86,25 @@ public class MixtureModel
 			weightSum += weights[i];
 			
 			// Generate "centroid" and covariance matrix for the Multivariate Normal Distribution
-			for(int j = 0 ; j < dimensions ; j++)
+			for(int j = 0 ; j < this.dimensions ; j++)
 			{
-				means[j] = (modelRandom.nextDouble()*10.0)-(5.0);
-				for(int k = 0 ; k < dimensions ; k++)
+				means[j] = (modelRandom.nextDouble()*RANGE)-(RANGE/2.0);
+				for(int k = 0 ; k < this.dimensions ; k++)
 				{
-					x[j][k] = modelRandom.nextDouble();
+					x[j][k] = (((modelRandom.nextDouble()*2.0)-1.0)+((modelRandom.nextDouble()*2.0)-1.0))/2.0;
 				}
 			}
+			
+			System.out.println("\nMatrix X:\n");
+			for(int j = 0 ; j < this.dimensions ; j++)
+			{
+				for(int k = 0 ; k < this.dimensions ; k++)
+				{
+					System.out.print(x[j][k]+" ");
+				}
+				System.out.println();
+			}
+			System.out.println();			
 			
 			for(int j = 0 ; j < dimensions ; j++)
 			{
@@ -101,8 +115,8 @@ public class MixtureModel
 						matrixSum += x[j][l]*x[k][l];
 					}
 					
-					covariances[j][k] = matrixSum/5.0;
-					covariances[k][j] = matrixSum/5.0;
+					covariances[j][k] = matrixSum/COVSCALE;
+					covariances[k][j] = matrixSum/COVSCALE;
 					matrixSum = 0.0;
 				}
 			}
@@ -115,6 +129,8 @@ public class MixtureModel
 		{
 			weights[i] = weights[i]/weightSum;
 		}
+		
+		System.out.println(this.toString());
 	}
 
 	
@@ -153,7 +169,7 @@ public class MixtureModel
 					this.weights[i] = this.modelRandom.nextDouble();
 					for(int j = 0 ; j < this.dimensions ; j++)
 					{
-						newMeans[i][j] = (this.modelRandom.nextDouble()*10.0)-5.0;
+						newMeans[i][j] = (this.modelRandom.nextDouble()*RANGE)-(RANGE/2.0);
 					}
 				}
 				weightSum += this.weights[i];

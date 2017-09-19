@@ -70,11 +70,13 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
 	{
+		System.out.println("prepareForUseImpl called.");
 		generateHeader();
-		
+		System.out.println("Header generated.");
 		// Initialize mixture model
 		this.mixtureModel = new MixtureModel(this.numClassesOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
+		System.out.println("MixtureModel initialized.");
 	}
 
 	/**
@@ -106,11 +108,6 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
         this.streamHeader = new InstancesHeader(new Instances(
                 getCLICreationString(InstanceStream.class), attributes, 0));
         this.streamHeader.setClassIndex(this.streamHeader.numAttributes() - 1);
-        
-        System.out.println("streamHeader's number of attributes is "+this.streamHeader.numAttributes());
-        System.out.println("streamHeader's number of classes is "+this.streamHeader.numClasses());
-        System.out.println("streamHeader's class index is "+this.streamHeader.classIndex());
-        System.out.println("streamHeader's size is "+this.streamHeader.size());
 	}
     
 	/**
