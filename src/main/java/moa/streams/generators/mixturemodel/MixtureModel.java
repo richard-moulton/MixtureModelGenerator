@@ -203,12 +203,12 @@ public class MixtureModel
 		{
 			
 			// Generate new weights
-			this.weights[i] = (this.weights[i]*(1.0 - targetDist))+(newWeights[i]*targetDist/weightSum);
+			this.weights[i] = (this.weights[i]*(1.0 - Math.pow(targetDist, 2.0)))+(newWeights[i]*targetDist/weightSum);
 			
 			// Generate new means
 			for(int j = 0 ; j < this.dimensions ; j++)
 			{
-				newMeans[i][j] = newMeans[i][j]+(((modelRandom.nextDouble()*2.0)-1.0)*(1.0-targetDist));
+				newMeans[i][j] = newMeans[i][j]+(((modelRandom.nextDouble()*2.0)-1.0)*(1.0 - Math.pow(targetDist, 2.0)));
 			}
 
 			//Generate new covariance matrix
