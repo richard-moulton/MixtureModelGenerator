@@ -46,9 +46,9 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	public IntOption numAttsOption = new IntOption("numAtts", 'a',
             "The number of attributes to generate.", 10, 0, Integer.MAX_VALUE);
 
-    public IntOption distributionOption = new IntOption("distribution", 'd',
-            "Distribution used for models. Uniform 0, Gaussian 1, etc.",
-            1, 0, 4);
+    //public IntOption distributionOption = new IntOption("distribution", 'd',
+    //        "Distribution used for models. Uniform 0, Gaussian 1, etc.",
+    //        1, 0, 4);
     
     public IntOption numClassesOption = new IntOption("numClasses", 's',
             "The number of classes in the data stream and the number of models to include in the mixture model.",
@@ -70,13 +70,9 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository)
 	{
-		System.out.println("prepareForUseImpl called.");
 		generateHeader();
-		System.out.println("Header generated.");
-		// Initialize mixture model
 		this.mixtureModel = new MixtureModel(this.numClassesOption.getValue(), this.numAttsOption.getValue(),
 				this.instanceRandomSeedOption.getValue(), this.modelRandomSeedOption.getValue());
-		System.out.println("MixtureModel initialized.");
 	}
 
 	/**

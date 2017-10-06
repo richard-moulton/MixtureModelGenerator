@@ -41,15 +41,13 @@ import org.apache.commons.math3.distribution.*;
  * @author Richard Hugh Moulton
  */
 public class MixtureModel
-{
-	public static final double RANGE = 1.0;
-	public static final double COVSCALE = 10.0;
-	
+{	
 	private int numModels, dimensions;
 	private double[] weights;
 	private MultivariateNormalDistribution[] modelArray;
 	private Random modelRandom;
 	private Random instanceRandom;
+	private double range;
 	
 	/**
 	 * Constructor method for a new MixtureModel that uses basic parameters.
@@ -66,6 +64,7 @@ public class MixtureModel
 		this.dimensions = numAttributes;
 		weights = new double[numModels];
 		modelArray = new MultivariateNormalDistribution[numModels];
+		range = (double)this.numModels;
 		
 		// Initialize random number generators
 		modelRandom = new Random();
@@ -75,9 +74,6 @@ public class MixtureModel
 		
 		double weightSum = 0.0;
 		double[] means = new double[dimensions];
-		double[][] x = new double[dimensions][dimensions];
-		double[][] covariances = new double[dimensions][dimensions];
-		double matrixSum = 0.0;
 		
 		// initialize arrays
 		for(int i = 0 ; i < numModels ; i++)
@@ -85,41 +81,13 @@ public class MixtureModel
 			weights[i] = modelRandom.nextDouble();
 			weightSum += weights[i];
 			
-			// Generate "centroid" and covariance matrix for the Multivariate Normal Distribution
+			// Generate "centroids" for the Multivariate Normal Distribution
 			for(int j = 0 ; j < this.dimensions ; j++)
 			{
-				means[j] = (modelRandom.nextDouble()*RANGE)-(RANGE/2.0);
-				for(int k = 0 ; k < this.dimensions ; k++)
-				{
-					x[j][k] = (((modelRandom.nextDouble()*2.0)-1.0)+((modelRandom.nextDouble()*2.0)-1.0))/2.0;
-				}
+				means[j] = (modelRandom.nextDouble()*range)-(range/2.0);
 			}
 			
-			System.out.println("\nMatrix X:\n");
-			for(int j = 0 ; j < this.dimensions ; j++)
-			{
-				for(int k = 0 ; k < this.dimensions ; k++)
-				{
-					System.out.print(x[j][k]+" ");
-				}
-				System.out.println();
-			}
-			System.out.println();			
-			
-			for(int j = 0 ; j < dimensions ; j++)
-			{
-				for(int k = 0 ; k <= j ; k++)
-				{
-					for(int l = 0 ; l < dimensions ; l++)
-					{
-						matrixSum += x[j][l]*x[k][l];
-					}
-					
-					covariances[j][k] = matrixSum/COVSCALE;
-					covariances[k][j] = matrixSum/COVSCALE;
-					matrixSum = 0.0;
-				}
-			}
+			double[][] covariances = generateCovariance(this.dimensions);		
 			
 			modelArray[i] = new MultivariateNormalDistribution(means, covariances);
 		}
@@ -130,92 +98,7 @@ public class MixtureModel
 			weights[i] = weights[i]/weightSum;
 		}
 		
-		System.out.println(this.toString());
-	}
-
-	
-	public MixtureModel(MixtureModel mm, int numClasses, double targetDist, int instanceRandomSeed, int modelRandomSeed)
-	{
-		// Initialize Mixture Model Variables
-		this.numModels = numClasses;
-		this.dimensions = mm.getDimensions();		
-		this.weights = new double[this.numModels];
-		this.modelArray = new MultivariateNormalDistribution[numClasses];
-		
-		// Initialize random number generators
-		modelRandom = new Random();
-		modelRandom.setSeed(modelRandomSeed);
-		instanceRandom = new Random();
-		instanceRandom.setSeed(instanceRandomSeed);
-		
-		double[][] newMeans = new double[this.numModels][this.dimensions];
-		double[][] newCovariance;
-		double[] newWeights = new double[this.numModels];
-		double weightSum = 0.0;
-		
-		// Collate base values for weights and means.
-		if(this.numModels != mm.getNumModels())
-		{
-			// Generate new weight array
-			for(int i = 0 ; i < this.numModels ; i++)
-			{
-				if (i < mm.getNumModels())
-				{
-					this.weights[i] = mm.getWeight(i);
-					newMeans[i] = mm.getMeans(i);
-				}
-				else
-				{
-					this.weights[i] = this.modelRandom.nextDouble();
-					for(int j = 0 ; j < this.dimensions ; j++)
-					{
-						newMeans[i][j] = (this.modelRandom.nextDouble()*RANGE)-(RANGE/2.0);
-					}
-				}
-				weightSum += this.weights[i];
-			}
-			
-			// Normalize weight array
-			for(int i = 0 ; i < this.numModels ; i++)
-			{
-				this.weights[i] = this.weights[i] / weightSum;
-			}
-			
-		}
-		else
-		{
-			this.weights = mm.getWeights();
-			for(int i = 0 ; i < this.numModels ; i++)
-			{
-				newMeans[i] = mm.getMeans(i);
-			}
-		}
-		
-		weightSum = 0.0;
-		for(int i = 0 ; i < this.numModels ; i++)
-		{
-			newWeights[i] = modelRandom.nextDouble();
-			weightSum += newWeights[i];
-		}
-		
-		// Update new values for weights and means
-		for(int i = 0 ; i < this.numModels ; i++)
-		{
-			
-			// Generate new weights
-			this.weights[i] = (this.weights[i]*(1.0 - Math.pow(targetDist, 2.0)))+(newWeights[i]*targetDist/weightSum);
-			
-			// Generate new means
-			for(int j = 0 ; j < this.dimensions ; j++)
-			{
-				newMeans[i][j] = newMeans[i][j]+(((modelRandom.nextDouble()*2.0)-1.0)*(1.0 - Math.pow(targetDist, 2.0)));
-			}
-
-			//Generate new covariance matrix
-			newCovariance = mm.getCovariance(i);
-
-			this.modelArray[i] = new MultivariateNormalDistribution(newMeans[i], newCovariance);
-		}	
+		//System.out.println(this.toString());
 	}
 	
 	/**
@@ -226,11 +109,11 @@ public class MixtureModel
 	 * @param instHead the header for instances in the data stream
 	 * @return the next instance in the data stream
 	 */
-	public InstanceExample nextInstance(InstancesHeader instHead)
+	public InstanceExample nextInstance(InstancesHeader instHeader)
 	{
 		int index = MiscUtils.chooseRandomIndexBasedOnWeights(this.weights,
                 this.instanceRandom);
-		//System.out.println("MMnI: index "+index+" is chosen.");
+		//System.out.println("MMnI: index "+index+" is chosen.\n"+modelArray[index].toString());
 		double[] point = modelArray[index].sample();
 		double[] attVals = new double[dimensions+1];
 		
@@ -243,7 +126,7 @@ public class MixtureModel
 		}
 		
 		Instance inst = new DenseInstance(1.0, attVals);
-        inst.setDataset(instHead);
+        inst.setDataset(instHeader);
         inst.setClassValue(index);
         return new InstanceExample(inst);
 	}
@@ -268,15 +151,10 @@ public class MixtureModel
 	public double densityAt(double[] point)
 	{
 		double density = 0.0;
-		double w;
-		double dAt;
 		
-		for(int i = 0 ; i < dimensions ; i++)
+		for(int i = 0 ; i < this.numModels ; i++)
 		{
-			w = weights[i];
-			dAt = modelArray[i].density(point);
-			density += w*dAt;
-			//System.out.println("density + ("+w+" * "+dAt+") = "+density);
+			density += weights[i]*modelArray[i].density(point);
 		}
 		
 		return density;
@@ -368,6 +246,38 @@ public class MixtureModel
 		sb.append("\n");
 		
 		return sb.toString();
+	}
+	
+	private double[][] generateCovariance(int d)
+	{
+		double[][] x = new double[d][d];
+		double[][] covariances = new double[d][d];
+		double matrixSum = 0.0;
+
+		for(int j = 0 ; j < d ; j++)
+		{
+			for(int k = 0 ; k < d ; k++)
+			{
+				x[j][k] = (((modelRandom.nextDouble()*2.0)-1.0)+((modelRandom.nextDouble()*2.0)-1.0))/2.0;
+			}
+		}
+
+		for(int j = 0 ; j < d ; j++)
+		{
+			for(int k = 0 ; k <= j ; k++)
+			{
+				for(int l = 0 ; l < d ; l++)
+				{
+					matrixSum += x[j][l]*x[k][l];
+				}
+
+				covariances[j][k] = matrixSum;
+				covariances[k][j] = matrixSum;
+				matrixSum = 0.0;
+			}
+		}
+
+		return covariances;
 	}
 	
 }
