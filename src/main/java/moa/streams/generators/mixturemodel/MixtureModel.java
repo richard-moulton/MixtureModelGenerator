@@ -101,6 +101,39 @@ public class MixtureModel
 		//System.out.println(this.toString());
 	}
 	
+	public MixtureModel(int numClasses, int numAttributes, int instanceRandomSeed, int modelRandomSeed, MixtureModel mm1, double targetDist)
+	{
+		this(numClasses, numAttributes, instanceRandomSeed, modelRandomSeed);
+		
+		double weightSum = 0.0;
+		double adjustmentFactor = Math.pow(targetDist, 2.0);
+		
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			// Adjust weights and means
+			if(i < mm1.getNumModels())
+			{
+				this.weights[i] = (this.weights[i]*adjustmentFactor) + (mm1.getWeight(i)*(1.0 - adjustmentFactor));
+				double [] newMeans = new double[this.dimensions];
+				
+				for (int j = 0 ; j < this.dimensions ; j++)
+				{
+					newMeans[j] = (this.getMeans(i)[j]*adjustmentFactor) + (mm1.getMeans(i)[j]*(1.0-adjustmentFactor));
+				}
+				this.setMeans(i, newMeans);
+			}
+			
+			weightSum += this.weights[i];
+		}
+		
+		// Normalize weights array
+		for(int i = 0 ; i < numModels ; i++)
+		{
+			weights[i] = weights[i]/weightSum;
+		}
+		
+	}
+
 	/**
 	 * Generates the next instance in the data stream by selecting a model (via the weights array) and then sampling that model.
 	 * 
@@ -278,6 +311,15 @@ public class MixtureModel
 		}
 
 		return covariances;
+	}
+	
+	private void setMeans(int i, double[] newMeans)
+	{
+		MultivariateNormalDistribution mvndi = this.modelArray[i];
+		
+		MultivariateNormalDistribution mvndNew = new MultivariateNormalDistribution(newMeans, mvndi.getCovariances().getData());
+		
+		this.modelArray[i] = mvndNew;
 	}
 	
 }
