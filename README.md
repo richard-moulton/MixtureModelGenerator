@@ -5,6 +5,10 @@ Designed to be compatible with the MOA (Massive Online Analysis) 17.06 release. 
 
 These classes include the Apache Commons Mathematics Library as a dependency. The Apache Commons Mathematics Library is a library of lightweight, self-contained mathematics and statistics components addressing the most common problems not available in the Java programming language or Commons Lang. More details as well as download links can be found on the library's website (https://commons.apache.org/proper/commons-math/).
 
+This project has a DOI: [![DOI](https://zenodo.org/badge/102765356.svg)](https://zenodo.org/badge/latestdoi/102765356)
+
+
+*REFERENCES*
 [1] Bifet, A., Holmes, G., Kirkby, R. & Pfahringer, B. Moa: Massive online analysis. J. Mach. Learn. Res. 11, 1601–1604 (2010).
 
 [2] Webb, G. I., Hyde, R., Cao, H., Nguyen, H. L. & Petitjean, F. Characterizing concept drift. Data Min. Knowl. Discov. 30, 964–994 (2016).
