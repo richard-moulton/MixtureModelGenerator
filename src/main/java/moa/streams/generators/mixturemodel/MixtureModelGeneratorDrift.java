@@ -1,5 +1,5 @@
 /*
- *    MixtureModelGenerator.java
+ *    MixtureModelGeneratorDrift.java
  *    
  *    Copyright 2017 Richard Hugh Moulton
  *   
@@ -39,7 +39,8 @@ import moa.streams.InstanceStream;
 import moa.tasks.TaskMonitor;
 
 /**
- * Generates a data stream based on an underlying mixture model.
+ * Generates a data stream with concept drift. The concepts before and
+ * after the drift period are each based on an underlying mixture model.
  * 
  * @author Richard Hugh Moulton
  */
