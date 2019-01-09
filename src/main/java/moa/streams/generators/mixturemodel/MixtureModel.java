@@ -31,6 +31,7 @@ import moa.core.MiscUtils;
 import java.util.Random;
 
 import org.apache.commons.math3.distribution.*;
+import org.apache.commons.math3.linear.*;
 
 /**
  * Makes use of the Apache Commons Math 3 package to represent a mixture model made up of individual multivariate distributions.
@@ -127,13 +128,94 @@ public class MixtureModel
 		}
 		
 		// Normalize weights array
-		for(int i = 0 ; i < numModels ; i++)
+		for(int i = 0 ; i < this.numModels ; i++)
 		{
-			weights[i] = weights[i]/weightSum;
+			this.weights[i] = this.weights[i]/weightSum;
 		}
 		
 	}
 
+	/**
+	 * Sets a given probability in the model weight probability vector to a specified weight.
+	 * 
+	 * @param index the index of the model whose weight to set
+	 * @param weight the weight to set the chosen model's probability to
+	 */
+	public void setWeight(int index, double weight)
+	{
+		double weightSum = 0.0;
+		
+		// Ensure that "weight" is a valid probability (between 0 and 1)
+		if(weight > 1.0)
+		{
+			System.out.println("Invalid weight for a probability vector; greater than 1.0!");
+			weight = 1.0;
+		}
+		else if (weight < 0.0)
+		{
+			System.out.println("Invalid weight for a probability vector; less than 0.0!");
+			weight = 0.0;
+		}
+		
+		// Sum the probabilities for the non setting class...
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			if (i != index)
+				weightSum += this.weights[i];
+		}
+		
+		// ...and scale them appropriately. Set the index probability to the argument weight.
+		for(int i = 0 ; i < this.numModels ; i++)
+		{
+			if (i == index)
+				this.weights[i] = weight;
+			else
+				this.weights[i] = (this.weights[i]*(1.0-weight))/weightSum;
+		}
+	}
+	
+	/**
+	 * Sets the model weights so that the majority classes' weights sum to the argument weight.
+	 * 
+	 * @param numMajClasses the number of majority classes
+	 * @param weight the total of the majority classes' weights
+	 */
+	public void setWeights(int numMajClasses, double majWeight)
+	{
+		double weightSum = 0.0;
+		double minWeight = 1.0 - majWeight;
+		
+		// MAJORITY CLASSES
+		for(int i = 0 ; i < numMajClasses ; i++)
+		{
+			weights[i] = modelRandom.nextDouble();
+			weightSum += weights[i];
+		}
+		
+		// Normalize weights array
+		for(int i = 0 ; i < numMajClasses ; i++)
+		{
+			weights[i] = (majWeight*weights[i])/weightSum;
+		}
+		
+		// MINORITY CLASSES
+		weightSum = 0.0;
+		
+		for(int i = numMajClasses ; i < this.numModels ; i++)
+		{
+			weights[i] = modelRandom.nextDouble();
+			weightSum += weights[i];
+		}
+		
+		// Normalize weights array
+		for(int i = numMajClasses ; i < this.numModels ; i++)
+		{
+			weights[i] = (minWeight*weights[i])/weightSum;
+		}
+		
+	}
+	
+	
 	/**
 	 * Generates the next instance in the data stream by selecting a model (via the weights array) and then sampling that model.
 	 * 
@@ -162,6 +244,94 @@ public class MixtureModel
         inst.setDataset(instHeader);
         inst.setClassValue(index);
         return new InstanceExample(inst);
+	}
+	
+	/**
+	 * Calculates the concept assignment map. Each majority class is its own concept, each minority class is assigned to its closest concept.
+	 * @param numMajClasses the number of majority classes
+	 * 
+	 * @return an array mapping classes to concepts
+	 */
+	public double[] getConceptAssignments(int numMajClasses)
+	{
+		double[] conceptAssignments = new double[this.numModels];
+		
+		//System.out.print("ConceptAssignments:");
+		for(int i = 0 ; i < numMajClasses ; i++)
+		{
+			conceptAssignments[i] = i;
+			//System.out.print(" "+i+":"+conceptAssignments[i]+":0 /");
+		}
+		
+		for(int i = numMajClasses ; i < this.numModels ; i++)
+		{
+			conceptAssignments[i] = getIndexOfClosestMajorityClass(i, numMajClasses);
+			//System.out.print(" "+i+":"+conceptAssignments[i]+":1 /");
+		}
+		
+		//System.out.println();
+		
+		return conceptAssignments;
+	}
+	
+	/**
+	 * Determines to which majority class/concept the argument minority class is closest.
+	 * 
+	 * @param index the index of the minority class
+	 * @param numMajClasses the number of majority classes
+	 * 
+	 * @return the index of the majority class to which the minority class is closest
+	 */
+	private double getIndexOfClosestMajorityClass(int index, int numMajClasses)
+	{
+		double concept = -1;
+		double minDistance = Double.MAX_VALUE;
+		double currDistance;
+		
+		for(int i = 0 ; i < numMajClasses ; i++)
+		{
+			currDistance = hellingerDistance(index, i);
+			
+			if(currDistance < minDistance)
+			{
+				minDistance = currDistance;
+				concept = i;
+			}
+		}		
+		
+		return concept;
+	}
+	
+	/**
+	 * Calculates the Hellinger distance between two multivariate normal distributions.
+	 * 
+	 * @param modelA the first MVND
+	 * @param modelB the second MVND
+	 * @return the Hellinger distance bewteen modelA and modelB
+	 */
+	private double hellingerDistance(int modelA, int modelB)
+	{
+		Array2DRowRealMatrix meansA = new Array2DRowRealMatrix(getMeans(modelA));
+		Array2DRowRealMatrix covarianceA = new Array2DRowRealMatrix(getCovariance(modelA));
+		Array2DRowRealMatrix meansB = new Array2DRowRealMatrix(getMeans(modelB));
+		Array2DRowRealMatrix covarianceB = new Array2DRowRealMatrix(getCovariance(modelB));
+		
+		Array2DRowRealMatrix covarianceCombined = (Array2DRowRealMatrix)(covarianceA.add(covarianceB)).scalarMultiply(0.5);
+		Array2DRowRealMatrix covarianceCombinedInverse = (Array2DRowRealMatrix)new LUDecomposition(covarianceCombined).getSolver().getInverse();
+		Array2DRowRealMatrix meansDifference = (Array2DRowRealMatrix)(meansA.subtract(meansB));
+		
+		double detA = new LUDecomposition(covarianceA).getDeterminant();
+		double detB = new LUDecomposition(covarianceB).getDeterminant();
+		double detCmbnd = new LUDecomposition(covarianceCombined).getDeterminant();
+
+		
+		double partA = (Math.pow(detA, 0.25)*Math.pow(detB, 0.25))/Math.pow(detCmbnd, 0.5);
+		Array2DRowRealMatrix partBMatrix = (Array2DRowRealMatrix)((meansDifference.transpose()).multiply(covarianceCombinedInverse)).multiply(meansDifference);
+		double partB = Math.exp(-0.125 * partBMatrix.getEntry(0, 0));
+		
+		double distance = 1.0 - (partA*partB);
+
+		return Math.sqrt(distance);
 	}
 	
 	/**
