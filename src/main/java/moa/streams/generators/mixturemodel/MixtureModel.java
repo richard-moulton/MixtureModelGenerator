@@ -46,6 +46,7 @@ public class MixtureModel
 	private int numModels, dimensions;
 	private double[] weights;
 	private MultivariateNormalDistribution[] modelArray;
+	private double[][][] lArray;
 	private Random modelRandom;
 	private Random instanceRandom;
 	private double range;
@@ -63,68 +64,35 @@ public class MixtureModel
 		// Initialize Mixture Model Variables
 		this.numModels = numClasses;
 		this.dimensions = numAttributes;
-		weights = new double[numModels];
-		modelArray = new MultivariateNormalDistribution[numModels];
-		range = (double)this.numModels;
+		this.weights = new double[this.numModels];
+		this.modelArray = new MultivariateNormalDistribution[this.numModels];
+		this.lArray = new double[this.numModels][this.dimensions][this.dimensions];
+		this.range = (double) this.numModels;
 		
 		// Initialize random number generators
-		modelRandom = new Random();
-		modelRandom.setSeed(modelRandomSeed);
-		instanceRandom = new Random();
-		instanceRandom.setSeed(instanceRandomSeed);
+		this.modelRandom = new Random();
+		this.modelRandom.setSeed(modelRandomSeed);
+		this.instanceRandom = new Random();
+		this.instanceRandom.setSeed(instanceRandomSeed);
 		
 		double weightSum = 0.0;
-		double[] means = new double[dimensions];
+		double[] means = new double[this.dimensions];
 		
 		// initialize arrays
-		for(int i = 0 ; i < numModels ; i++)
+		for(int i = 0 ; i < this.numModels ; i++)
 		{
-			weights[i] = modelRandom.nextDouble();
-			weightSum += weights[i];
+			this.weights[i] = this.modelRandom.nextDouble();
+			weightSum += this.weights[i];
 			
 			// Generate "centroids" for the Multivariate Normal Distribution
 			for(int j = 0 ; j < this.dimensions ; j++)
 			{
-				means[j] = (modelRandom.nextDouble()*range)-(range/2.0);
+				means[j] = (this.modelRandom.nextDouble()*range)-(range/2.0);
 			}
 			
-			double[][] covariances = generateCovariance(this.dimensions);		
+			this.lArray[i] = this.generateL();
 			
-			modelArray[i] = new MultivariateNormalDistribution(means, covariances);
-		}
-		
-		// Normalize weights array
-		for(int i = 0 ; i < numModels ; i++)
-		{
-			weights[i] = weights[i]/weightSum;
-		}
-		
-		//System.out.println(this.toString());
-	}
-	
-	public MixtureModel(int numClasses, int numAttributes, int instanceRandomSeed, int modelRandomSeed, MixtureModel mm1, double targetDist)
-	{
-		this(numClasses, numAttributes, instanceRandomSeed, modelRandomSeed);
-		
-		double weightSum = 0.0;
-		double adjustmentFactor = Math.pow(targetDist, 2.0);
-		
-		for(int i = 0 ; i < this.numModels ; i++)
-		{
-			// Adjust weights and means
-			if(i < mm1.getNumModels())
-			{
-				this.weights[i] = (this.weights[i]*adjustmentFactor) + (mm1.getWeight(i)*(1.0 - adjustmentFactor));
-				double [] newMeans = new double[this.dimensions];
-				
-				for (int j = 0 ; j < this.dimensions ; j++)
-				{
-					newMeans[j] = (this.getMeans(i)[j]*adjustmentFactor) + (mm1.getMeans(i)[j]*(1.0-adjustmentFactor));
-				}
-				this.setMeans(i, newMeans);
-			}
-			
-			weightSum += this.weights[i];
+			this.modelArray[i] = new MultivariateNormalDistribution(means, generateCovariance(this.lArray[i]));
 		}
 		
 		// Normalize weights array
@@ -133,6 +101,7 @@ public class MixtureModel
 			this.weights[i] = this.weights[i]/weightSum;
 		}
 		
+		//System.out.println(this.toString());
 	}
 
 	/**
@@ -175,7 +144,8 @@ public class MixtureModel
 	}
 	
 	/**
-	 * Sets the model weights so that the majority classes' weights sum to the argument weight.
+	 * Sets the model weights so that, in a one-class classification scenario, the majority classes'
+	 * weights sum to the argument weight.
 	 * 
 	 * @param numMajClasses the number of majority classes
 	 * @param weight the total of the majority classes' weights
@@ -336,6 +306,7 @@ public class MixtureModel
 	
 	/**
 	 * Restarts the mixture model by reinitializing the pseudo random number generators' seeds.
+	 * 
 	 * @param instanceRandomSeed the seed for the instances' pseudo random number generator.
 	 * @param modelRandomSeed the see for the models' pseudo random number generator.
 	 */
@@ -346,7 +317,9 @@ public class MixtureModel
 	}
 
 	/**
-	 * Calculates the density of the mixture model at the argument point.
+	 * Calculates the density of the mixture model at the argument point. This is done
+	 * via a weighted sum of the density of each multivariate normal distribution in the
+	 * mixture model  evaluated at the argument point.
 	 * 
 	 * @param point the point at which to calculate the mixture model's density.
 	 * @return the mixture model's density at the argument point.
@@ -362,8 +335,117 @@ public class MixtureModel
 		
 		return density;
 	}
+	
+	/**
+	 * Generates L, a lower triangular matrix with all real entries and with non-negative
+	 * entries on the diagonal. This matrix will be used as the Cholesky decomposition of
+	 * a covariance matrix (which must itself be positive semi-definite).
+	 * 
+	 * @return L, lower triangular matrix with non-negative entries on the diagonal.
+	 */
+	private double[][] generateL()
+	{
+		double[][] l = new double[this.dimensions][this.dimensions];
+		
+		for(int j = 0 ; j < this.dimensions ; j++)
+		{
+			for(int k = 0 ; k < j ; k++)
+			{
+				l[j][k] = (modelRandom.nextDouble()*2.0)-1.0;
+			}
+			
+			l[j][j] = modelRandom.nextDouble();
+		}
 
+		return l;
+	}
+	
+	/**
+	 * Using the argument matrix l* as a Cholesky decomposition, this method generates
+	 * and returns a covariance matrix (which must be positive semi-definite).
+	 * 
+	 * * - the argument matrix l must be a lower triangular matrix with all real entries
+	 * and with non-negative entries on the diagonal. Such a matrix is generated by the
+	 * generateL() method in this class.
+	 * 
+	 * @param l the Cholesky decomposition for the eventual covariance matrix.
+	 * @return the covariance matrix recovered from its Cholesky decomposition, l.
+	 */
+	private double[][] generateCovariance(double[][] l)
+	{
+		double[][] covariances = new double[this.dimensions][this.dimensions];
+		double matrixSum;
 
+		for(int j = 0 ; j < this.dimensions ; j++)
+		{
+			for(int k = 0 ; k <= j ; k++)
+			{
+				matrixSum = 0.0;
+
+				for(int m = 0 ; m < this.dimensions ; m++)
+				{
+					matrixSum += l[j][m]*l[k][m];
+				}
+
+				covariances[j][k] = matrixSum;
+				covariances[k][j] = matrixSum;
+			}
+		}
+		
+		return covariances;
+	}
+
+	/**
+	 * Adjust this mixture model towards or away from the argument mixture model
+	 * as dictated by the argument miss distance.
+	 * 
+	 * @param targetMM the MixtureModel towards/away from which to adjust this MixtureModel
+	 * @param distMiss the required correction between the respective MixtureModels
+	 */
+	public void adjustMixtureModel(MixtureModel targetMM, double distMiss)
+	{
+		// Adjust the weights
+		for(int i = 0 ; i < this.getNumModels() ; i++)
+		{
+			double weightMiss = targetMM.getWeight((i%targetMM.getDimensions())) - this.weights[i];
+			this.weights[i] = this.weights[i] + (weightMiss*distMiss) + (this.modelRandom.nextDouble()/100.0);
+		}
+		
+		// Adjust the MVNDs
+		int numTargetModels = targetMM.getNumModels();
+		for(int i = 0 ; i < this.getNumModels() ; i++)
+		{
+			MultivariateNormalDistribution mvndi = this.modelArray[i];
+			double[] oldMeans = mvndi.getMeans();
+			double[][] oldX = this.getL(i);
+			
+			double[] targetMeans = targetMM.getMeans(i%numTargetModels);
+			double[][] targetX = targetMM.getL(i%numTargetModels);
+			
+			double[] newMeans = new double[this.dimensions];
+			double[][] newX = new double[this.dimensions][this.dimensions];
+			
+			for(int j = 0 ; j < this.dimensions ; j++)
+			{
+				// Update the means
+				double meanDist = targetMeans[j] - oldMeans[j];
+				newMeans[j] = oldMeans[j] + (meanDist*distMiss) + (this.modelRandom.nextDouble()/100.0);
+				
+				// Update the X matrix
+				for(int k = 0 ; k < this.dimensions ; k++)
+				{
+					double xMiss = targetX[j][k] - oldX[j][k];
+					newX[j][k] = oldX[j][k] + (xMiss*distMiss) + (this.modelRandom.nextDouble()/100.0);
+				}				
+			}
+			
+			this.lArray[i] = newX;
+
+			MultivariateNormalDistribution mvndNew = new MultivariateNormalDistribution(newMeans, this.generateCovariance(newX));
+			this.modelArray[i] = mvndNew;
+		}
+	}	
+	
 	/**
 	 * @return the number of dimensions for the multivariate distribution
 	 */
@@ -382,8 +464,11 @@ public class MixtureModel
 	}
 	
 	/**
-	 * @param i the index of the model
-	 * @return the weight of the ith model
+	 * Returns the weight of the ith multivariate normal distribution (MVND)
+	 * in the mixture model.
+	 * 
+	 * @param i the index of the MVND
+	 * @return the weight of the ith MVND
 	 */
 	public double getWeight(int i)
 	{
@@ -391,6 +476,7 @@ public class MixtureModel
 	}
 	
 	/**
+	 * Returns the vector of weights for the mixture model.
 	 * 
 	 * @return the weights of the mixture model
 	 */
@@ -400,20 +486,49 @@ public class MixtureModel
 	}
 	
 	/**
+	 * Returns the means of the ith multivariate normal distribution (MVND)
+	 * in the mixture model.
 	 * 
-	 * @param i the index of the model
-	 * @return the means of the ith model
+	 * @param i the index of the MVND
+	 * @return the means of the ith MVND
 	 */
 	public double[] getMeans(int i)
 	{
 		return this.modelArray[i].getMeans();
 	}
 	
+	/**
+	 * Returns the covariance matrix belonging to the ith multivariate normal
+	 * distribution (MVND).
+	 * 
+	 * @param i the index of the MVND
+	 * @return the covariance matrix of the ith MVND
+	 */
 	public double[][] getCovariance(int i)
 	{
 		return this.modelArray[i].getCovariances().getData();
 	}
 	
+	/**
+	 * Returns the Cholesky decomposition of the covariance matrix belonging
+	 * to the ith multivariate normal distribution (MVND).
+	 * 
+	 * @param i the index of the MVND
+	 * @return the Cholesky decomposition of the ith MVND's covariance matrix
+	 */
+	public double[][] getL(int i)
+	{
+		return this.lArray[i];
+	}
+	
+	/**
+	 * Constructs and returns a String representation of the MixtureModel object.
+	 * This includes the means and covariance matrix for each of the multivariate
+	 * normal distributions (MVNDs) as well as the weight vector weighting each
+	 * of the MVNDs in the mixture model.
+	 * 
+	 * @return a String representation of the MixtureModel object
+	 */
 	public String toString()
 	{
 		StringBuilder sb = new StringBuilder();
@@ -450,46 +565,4 @@ public class MixtureModel
 		
 		return sb.toString();
 	}
-	
-	private double[][] generateCovariance(int d)
-	{
-		double[][] x = new double[d][d];
-		double[][] covariances = new double[d][d];
-		double matrixSum = 0.0;
-
-		for(int j = 0 ; j < d ; j++)
-		{
-			for(int k = 0 ; k < d ; k++)
-			{
-				x[j][k] = (((modelRandom.nextDouble()*2.0)-1.0)+((modelRandom.nextDouble()*2.0)-1.0))/2.0;
-			}
-		}
-
-		for(int j = 0 ; j < d ; j++)
-		{
-			for(int k = 0 ; k <= j ; k++)
-			{
-				for(int l = 0 ; l < d ; l++)
-				{
-					matrixSum += x[j][l]*x[k][l];
-				}
-
-				covariances[j][k] = matrixSum;
-				covariances[k][j] = matrixSum;
-				matrixSum = 0.0;
-			}
-		}
-
-		return covariances;
-	}
-	
-	private void setMeans(int i, double[] newMeans)
-	{
-		MultivariateNormalDistribution mvndi = this.modelArray[i];
-		
-		MultivariateNormalDistribution mvndNew = new MultivariateNormalDistribution(newMeans, mvndi.getCovariances().getData());
-		
-		this.modelArray[i] = mvndNew;
-	}
-	
 }

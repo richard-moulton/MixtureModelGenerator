@@ -1,5 +1,5 @@
 /*
- *    MixtureModelGeneratorDrift.java
+ *    MixtureModelGenerator.java
  *    
  *    Copyright 2017 Richard Hugh Moulton
  *   
@@ -22,25 +22,26 @@
 package moa.streams.generators.mixturemodel;
 
 import com.github.javacliparser.IntOption;
-
+import com.github.javacliparser.MultiChoiceOption;
 import java.util.Random;
 
 import com.github.javacliparser.FloatOption;
 import com.yahoo.labs.samoa.instances.Attribute;
+import com.yahoo.labs.samoa.instances.DenseInstance;
 import com.yahoo.labs.samoa.instances.Instance;
 import com.yahoo.labs.samoa.instances.Instances;
 import com.yahoo.labs.samoa.instances.InstancesHeader;
 
 import moa.core.Example;
 import moa.core.FastVector;
+import moa.core.InstanceExample;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.streams.InstanceStream;
 import moa.tasks.TaskMonitor;
 
 /**
- * Generates a data stream with concept drift. The concepts before and
- * after the drift period are each based on an underlying mixture model.
+ * Generates a data stream with concept drift based on underlying mixture models.
  * 
  * @author Richard Hugh Moulton
  */
@@ -50,7 +51,7 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 	private static final long serialVersionUID = 1L;
 
 	public IntOption numAttsOption = new IntOption("numAtts", 'a',
-			"The number of attributes to generate.", 10, 0, Integer.MAX_VALUE);
+			"The number of attributes to generate.", 2, 1, 10);
 
 	//public IntOption distributionOption = new IntOption("distribution", 'z',
 	//      "Distribution used for models. Uniform 0, Gaussian 1, etc.",
@@ -58,26 +59,30 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 
 	public IntOption numClassesPreOption = new IntOption("numClassesPre", 'p',
 			"The number of classes in the data stream and the number of models to include in the mixture model pre-concept drift.",
-			2, 2, Integer.MAX_VALUE);
+			2, 2, 20);
+
+	public IntOption numClassesPostOption = new IntOption("numClassesPost", 'P',
+			"The number of classes in the data stream and the number of models to include in the mixture model post-concept drift.",
+			2, 2, 20);
 
 	public IntOption burnInInstances = new IntOption("burnInInstances", 'b',
-			"The number of instances to draw from the pre-concept drift mixture model.", 10000, 1, Integer.MAX_VALUE);
+			"The number of instances to draw from the pre-concept drift mixture model.", 2000, 1, Integer.MAX_VALUE);
 
 	public IntOption driftDuration = new IntOption("driftDuration", 'd',
 			"The number of instances between the stable pre-drift mixture model and the stable post-drift mixture model.",
 			0, 0, Integer.MAX_VALUE);
 
+	public MultiChoiceOption driftType = new MultiChoiceOption("driftType", 't', "The type of extended drift to implement",
+			new String[]{"Incremental","Gradual"}, new String[]{"Consists of intermediate concepts between the two stables concepts for the duration of the drift.",
+	"Switches between the two stable concepts for the duration of the drift."}, 0);
+
 	public FloatOption driftMagnitude = new FloatOption("driftMagnitude",
 			'D', "Magnitude of the drift between the starting probability and the one after the drift."
-					+ " Magnitude is expressed as the Hellinger distance [0,1]", 0.5, 1e-20, 0.9);
+					+ " Magnitude is expressed as the Hellinger distance [0,1]", 0.5, 1e-20, 0.99);
 
 	public FloatOption precisionDriftMagnitude = new FloatOption("epsilon", 'e',
 			"Precision of the drift magnitude for p(x) (how far from the set magnitude is acceptable)",
 			0.01, 1e-20, 1.0);
-
-	public IntOption numClassesPostOption = new IntOption("numClassesPost", 'P',
-			"The number of classes in the data stream and the number of models to include in the mixture model post-concept drift.",
-			2, 2, Integer.MAX_VALUE);
 
 	public IntOption modelRandomSeedOption = new IntOption("modelRandomSeed",
 			'm', "Seed for random generation of model.", 1);
@@ -109,41 +114,73 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 
 		generateHeader(this.numClassesPreOption.getValue());
 
-		double hDist; //= hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
-		double distMiss; //= hDist - this.driftMagnitude.getValue();
+		double hDist;
+		double distMiss;
 		do
 		{
 			// Initialize pre-concept drift mixture model
 			this.mixtureModelPre = new MixtureModel(this.numClassesPreOption.getValue(), this.numAttsOption.getValue(),
-					this.instanceRandomSeedOption.getValue()+y, this.modelRandomSeedOption.getValue()+y++);
-			int z = y;
-
-			//System.out.println("PRE:\n"+this.mixtureModelPre.toString());
-
-			// Initialize post-concept drift mixture model
-			//this.mixtureModelPost = new MixtureModel(this.mixtureModelPre, this.numClassesPostOption.getValue(), this.driftMagnitude.getValue(),
-			//this.instanceRandomSeedOption.getValue()+1, this.modelRandomSeedOption.getValue()+1);
-			//this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
-			//		this.instanceRandomSeedOption.getValue()+z++, this.modelRandomSeedOption.getValue()+z++, 
-			//		this.mixtureModelPre, this.driftMagnitude.getValue());
+					this.instanceRandomSeedOption.getValue()+y, this.modelRandomSeedOption.getValue()+y);
+			int z = y+1;
 
 			do
 			{
+				// Try randomly generating the post-concept drift mixture model
 				this.mixtureModelPost = new MixtureModel(this.numClassesPostOption.getValue(), this.numAttsOption.getValue(),
-						this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z++, 
-						this.mixtureModelPre, this.driftMagnitude.getValue());
+						this.instanceRandomSeedOption.getValue()+z, this.modelRandomSeedOption.getValue()+z++);
 				hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
 				distMiss = hDist - this.driftMagnitude.getValue();
-				System.out.println((y-1)+"."+(z-1)+": The Hellinger distance was evaluated as "+hDist+", compared against the desired range "+this.driftMagnitude.getValue()+
-						" +/- "+this.precisionDriftMagnitude.getValue());
-			}while((z <= 100) && (Math.abs(distMiss) > this.precisionDriftMagnitude.getValue()));
+				
+				System.out.println(y+"."+(z-1)+"a: The Hellinger distance was calculated as "+hDist+", desired range was "+this.driftMagnitude.getValue()+
+						" +/- "+this.precisionDriftMagnitude.getValue()+" (miss "+distMiss+")");
 
-			//System.out.println("POST:\n"+this.mixtureModelPost.toString());
+				// Attempt to adjust the MixtureModels so as to better approximate the desired Hellinger distance
+				int q = 0;
+				double cumulativeMiss = 0;
+				while((cumulativeMiss < 5.0) && (Math.abs(distMiss) > this.precisionDriftMagnitude.getValue()))
+				{
+					cumulativeMiss += Math.abs(distMiss);
+
+					// Adjust the "random" candidate
+					this.mixtureModelPost.adjustMixtureModel(this.mixtureModelPre,distMiss);
+					hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
+					distMiss = hDist - this.driftMagnitude.getValue();
+					
+					System.out.println(y+"."+(z-1)+"a."+(q++)+": The Hellinger distance was calculated as "+hDist+", desired range was "+this.driftMagnitude.getValue()+
+							" +/- "+this.precisionDriftMagnitude.getValue()+" (miss "+distMiss+")");
+				}
+
+				if(Math.abs(distMiss) < this.precisionDriftMagnitude.getValue())
+					break;
+
+				// Try using the pre-concept drift mixture model for the post-concept drift mixture model
+				this.mixtureModelPost = new MixtureModel(this.numClassesPreOption.getValue(), this.numAttsOption.getValue(),
+						this.instanceRandomSeedOption.getValue()+y, this.modelRandomSeedOption.getValue()+y);
+				hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
+				distMiss = hDist - this.driftMagnitude.getValue();
+				System.out.println(y+"."+(z-1)+"b: The Hellinger distance was calculated as "+hDist+", desired range was "+this.driftMagnitude.getValue()+
+						" +/- "+this.precisionDriftMagnitude.getValue()+" (miss "+distMiss+")");
+
+				// Attempt to adjust the MixtureModels so as to better approximate the desired Hellinger distance
+				q = 0;
+				cumulativeMiss = 0;
+				while((cumulativeMiss < 5.0) && (Math.abs(distMiss) > this.precisionDriftMagnitude.getValue()))
+				{
+					cumulativeMiss += Math.abs(distMiss);
+
+					// Adjust the "identical" candidate
+					this.mixtureModelPost.adjustMixtureModel(this.mixtureModelPre,distMiss);
+					hDist = hellingerDistance(this.mixtureModelPre, this.mixtureModelPost, this.driftMagnitude.getValue());
+					distMiss = hDist - this.driftMagnitude.getValue();
+					System.out.println(y+"."+(z-1)+"b."+(q++)+": The Hellinger distance was calculated as "+hDist+", desired range was "+this.driftMagnitude.getValue()+
+							" +/- "+this.precisionDriftMagnitude.getValue()+" (miss "+distMiss+")");
+				}
+
+			}while((z < 100) && (Math.abs(distMiss) > this.precisionDriftMagnitude.getValue()));
+
+			y++;
+
 		}while(Math.abs(distMiss) > this.precisionDriftMagnitude.getValue());	
-
-		//System.out.println("The Hellinger distance was evaluated as "+hDist+", compared against the desired range "+this.driftMagnitude.getValue()+
-		//		" +/- "+this.precisionDriftMagnitude.getValue());
-		//System.out.println("The distance was off by "+distMiss);
 	}
 
 	/**
@@ -176,16 +213,67 @@ public class MixtureModelGeneratorDrift extends AbstractOptionHandler implements
 		else
 		{
 
+			InstanceExample instPre, instPost;
+			double threshold = ((double)this.numInstances-(double)this.burnInInstances.getValue())/(double)this.driftDuration.getValue();
+
 			if(this.numInstances == (lastInstancePre+1) &&
 					this.numClassesPostOption.getValue() > this.numClassesPreOption.getValue())
 			{
 				generateHeader(this.numClassesPostOption.getValue());
 			}
 
-			if (this.monteCarloRandom.nextDouble() < ((double)this.numInstances-(double)this.burnInInstances.getValue())/(double)this.driftDuration.getValue())
-				return this.mixtureModelPost.nextInstance(this.getHeader());
-			else
-				return this.mixtureModelPre.nextInstance(this.getHeader());
+			if(this.driftType.getChosenLabel().equals("Gradual"))
+			{
+				if (this.monteCarloRandom.nextDouble() < threshold)
+					return this.mixtureModelPost.nextInstance(this.getHeader());
+				else
+					return this.mixtureModelPre.nextInstance(this.getHeader());
+			}
+			else if(this.driftType.getChosenLabel().equals("Incremental"));
+			{
+				// Class determined by the post-concept drift mixture model
+				if (this.monteCarloRandom.nextDouble() < threshold)
+				{
+					instPost = this.mixtureModelPost.nextInstance(this.getHeader());
+
+					if(instPost.instance.classValue() > this.numClassesPreOption.getValue())
+						instPre = new InstanceExample(instPost.instance);
+					else
+					{
+						do
+						{
+							instPre = this.mixtureModelPre.nextInstance(this.getHeader());
+						}while(instPre.instance.classValue() != instPost.instance.classValue());
+					}
+
+				}
+				else
+				{
+					instPre = this.mixtureModelPre.nextInstance(this.getHeader());
+
+					if(instPre.instance.classValue() > this.numClassesPostOption.getValue())
+						instPost = new InstanceExample(instPre.instance);
+					else
+					{
+						do
+						{
+							instPost = this.mixtureModelPost.nextInstance(this.getHeader());
+						}while(instPre.instance.classValue() != instPost.instance.classValue());
+					}
+				}
+
+				double[] attVals = new double[this.numAttsOption.getValue()+1];
+
+				for(int i = 0 ; i < attVals.length ; i++)
+				{
+					attVals[i] = (instPost.instance.value(i)*threshold) + (instPre.instance.value(i)*(1.0 - threshold));
+				}
+
+				Instance instFinal = new DenseInstance(1.0, attVals);
+				instFinal.setDataset(this.getHeader());
+				instFinal.setClassValue(instPost.instance.classValue());		
+				return new InstanceExample(instFinal);
+			}
 		}
 
 	}

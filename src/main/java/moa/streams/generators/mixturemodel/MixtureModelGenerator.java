@@ -113,7 +113,6 @@ public class MixtureModelGenerator extends AbstractOptionHandler implements Inst
 	@Override
 	public InstancesHeader getHeader()
 	{
-		//System.out.println(this.streamHeader.toString());
 		return this.streamHeader;
 	}
 
